@@ -42,6 +42,9 @@ import {
   deleteGroup,
   getGroupDetails,
   getMyGroups,
+  togglePinGroup,
+  toggleArchiveGroup,
+  toggleMuteGroup,
   getPastMembers,     // 👈 add
 } from "../Controllers/groupController.js";
 
@@ -55,6 +58,9 @@ router.put("/add-admin", auth, addAdmin);
 router.put("/leave", auth, leaveGroup);
 router.delete("/delete", auth, deleteGroup);
 router.get("/:groupId/past-members", auth, getPastMembers); // 👈 new
+router.put("/:groupId/pin", auth, togglePinGroup);
+router.put("/:groupId/archive", auth, toggleArchiveGroup);
+router.put("/:groupId/mute", auth, toggleMuteGroup);
 router.get("/:groupId", auth, getGroupDetails);
 router.get("/", auth, getMyGroups);
 

@@ -61,7 +61,7 @@ import "./index.css";
 import { Route, Routes, Navigate } from "react-router-dom";
 import { useLocalStorage } from "@mantine/hooks";
 import { Sockets } from "./utils/Sockets";
-
+import SocketNotifier from "./components/SocketNotifier";
 // import Groups from "./components/Groups";
 
 // Lazy load pages
@@ -70,6 +70,7 @@ const Signup = lazy(() => import("./components/Signup"));
 const Homepage = lazy(() => import("./components/Homepage"));
 const ChatPage = lazy(() => import("./components/ChatPage"));
 const GroupsChatContainer = lazy(() => import("./components/GroupsChatContainer"));
+
 // Suppress all warnings
 
 function App() {
@@ -82,6 +83,7 @@ function App() {
     <div className="App bg-black text-white min-h-screen">
       <Suspense fallback={<div>Loading...</div>}>
   <Sockets>
+     <SocketNotifier />
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
@@ -95,12 +97,16 @@ function App() {
         path="/:userId"
         element={user ? <ChatPage /> : <Navigate to="/login" replace />}
       />
+      
 
            {/* <Route path="/groups" element={user ? <Groups /> : <Navigate to="/login" replace />} /> */}
-<Route
+{/* <Route
   path="/groups"
   element={user ? <GroupsChatContainer /> : <Navigate to="/login" replace />}
-/>
+/> */}
+ <Route path="groups" element={<GroupsChatContainer embedded />} />
+        <Route path="g/:groupId" element={<GroupsChatContainer embedded />} />
+    
     </Routes>
   </Sockets>
 </Suspense>

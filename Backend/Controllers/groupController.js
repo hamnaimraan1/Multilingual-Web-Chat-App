@@ -213,7 +213,41 @@ export const getGroupDetails = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+export const togglePinGroup = async (req, res) => {
+  const { groupId } = req.params;
+  const { pinned } = req.body; // boolean
+  const doc = await Group.findByIdAndUpdate(
+    groupId,
+    { $set: { pinned: !!pinned } },
+    { new: true }
+  );
+  if (!doc) return res.status(404).json({ message: "Group not found" });
+  return res.json({ pinned: doc.pinned });
+};
 
+export const toggleArchiveGroup = async (req, res) => {
+  const { groupId } = req.params;
+  const { archived } = req.body;
+  const doc = await Group.findByIdAndUpdate(
+    groupId,
+    { $set: { archived: !!archived } },
+    { new: true }
+  );
+  if (!doc) return res.status(404).json({ message: "Group not found" });
+  return res.json({ archived: doc.archived });
+};
+
+export const toggleMuteGroup = async (req, res) => {
+  const { groupId } = req.params;
+  const { muted } = req.body;
+  const doc = await Group.findByIdAndUpdate(
+    groupId,
+    { $set: { muted: !!muted } },
+    { new: true }
+  );
+  if (!doc) return res.status(404).json({ message: "Group not found" });
+  return res.json({ muted: doc.muted });
+};
 /* 10) Past members endpoint */
 export const getPastMembers = async (req, res) => {
   try {

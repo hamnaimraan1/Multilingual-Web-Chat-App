@@ -33,8 +33,24 @@ root.render(
     <Sockets> {/* ✅ Wrap with socket context */}
       <BrowserRouter>
         <App />
+        
       </BrowserRouter>
+      
     </Sockets>
   </MantineProvider>
 );
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      console.log('[SW] registered', reg);
 
+      // Ask for notification permission once at startup if still default
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        await Notification.requestPermission();
+      }
+    } catch (e) {
+      console.error('[SW] register error:', e);
+    }
+  });
+}
