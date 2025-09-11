@@ -1,4 +1,5 @@
 
+
 // import express from "express";
 // import { Server } from "socket.io";
 // import http from "http";
@@ -34,6 +35,7 @@
 // /* ---------- helpers ---------- */
 // const toPlain = (doc) => (doc?.toObject ? doc.toObject() : doc);
 
+// /** Infer message type from URL extension when client doesn't send a type */
 // const inferTypeFromUrl = (url = "") => {
 //   const u = String(url || "").toLowerCase();
 //   if (!u) return "text";
@@ -43,31 +45,37 @@
 //   return "file";
 // };
 
+// /** Normalize message out to clients: keep url, messageType, filename & size */
 // const normalizeMsgForClient = (doc, extra = {}) => {
 //   const o = toPlain(doc) || {};
-//   const messageType =
-//     o.messageType ||
-//     extra.messageType ||
-//     inferTypeFromUrl(o.imageUrl || o.audioUrl || o.videoUrl || o.fileUrl || extra.url || "");
 
 //   const url =
 //     o.imageUrl || o.audioUrl || o.videoUrl || o.fileUrl || extra.url || null;
 
-//   const fileName =
-//     o.fileName ?? extra.fileName ?? null;
+//   const messageType =
+//     o.messageType ||
+//     extra.messageType ||
+//     inferTypeFromUrl(url || "");
 
-//   // always provide both fileSize and size (bytes) so the client can read either
+//   // Filename/size: prefer stored values, but allow extra for optimistic ACKs
+//   const fileName = o.fileName ?? extra.fileName ?? null;
+
 //   const fileSize =
-//     typeof o.fileSize === "number" ? o.fileSize :
-//     typeof extra.size === "number" ? extra.size : null;
+//     typeof o.fileSize === "number"
+//       ? o.fileSize
+//       : typeof extra.size === "number"
+//       ? extra.size
+//       : Number.isFinite(Number(extra.size))
+//       ? Number(extra.size)
+//       : null;
 
 //   return {
 //     ...o,
-//     messageType,
 //     url,
+//     messageType,
 //     fileName,
 //     fileSize,
-//     size: fileSize,               // alias for convenience on the client
+//     size: fileSize, // alias for client code that expects "size"
 //     clientNonce: extra.clientNonce ?? o.clientNonce ?? null,
 //   };
 // };
@@ -167,13 +175,9 @@
 //         .sort({ createdAt: 1 });
 
 //       const groupOut = normalizeGroupForClient(group);
-//       const messagesOut = messages.map((m) => normalizeMsgForClient(m, {
-//         // these extras are redundant if schema is correct,
-//         // but keep them to be bulletproof:
-//         fileName: m.fileName,
-//         size: m.fileSize,
-//       })
-//     );
+//       const messagesOut = messages.map((m) =>
+//         normalizeMsgForClient(m /* stored values already have fileName/fileSize */)
+//       );
 
 //       socket.emit("groupInfo", groupOut);
 //       socket.emit("groupMessages", { groupId, messages: messagesOut });
@@ -182,6 +186,41 @@
 //       socket.emit("error", { msg: "Failed to load group messages" });
 //     }
 //   });
+// // Translate a single group message (text or audio transcription) for the requesting user
+// socket.on("translateGroupMessage", async ({ groupId, messageId, to }) => {
+//   if (!isValidObjectId(groupId) || !isValidObjectId(messageId)) return;
+
+//   try {
+//     const msg = await msgModel.findById(messageId);
+//     if (!msg || String(msg.groupId) !== String(groupId)) {
+//       throw new Error("Message not found for this group");
+//     }
+
+//     // Determine target language: explicit 'to' > user's preferredLanguage > 'en'
+//     const me = await User.findById(socket.userId);
+//     const targetLang =
+//       (typeof to === "string" && to) || me?.preferredLanguage || "en";
+
+//     // What to translate: for audio you already placed the transcription in msg.text
+//     const source = msg.text || msg.caption || "";
+//     if (!source) throw new Error("No text to translate");
+
+//     const translated = await translateText(source, targetLang);
+
+//     socket.emit("groupTranslationResult", {
+//       groupId: String(groupId),
+//       messageId: String(messageId),
+//       translatedText: translated,
+//     });
+//   } catch (err) {
+//     console.error("translateGroupMessage error:", err.message);
+//     socket.emit("groupTranslationError", {
+//       groupId,
+//       messageId,
+//       error: "Failed to translate",
+//     });
+//   }
+// });
 
 //   /* group: new message */
 //   socket.on("newGroupMsg", async (data, ack) => {
@@ -189,12 +228,15 @@
 //       if (!data?.sender || !data?.groupId) return;
 //       if (!isValidObjectId(data.sender) || !isValidObjectId(data.groupId)) return;
 
+//       // Normalize type
 //       const mapType = (t) => {
-//   const x = String(t || "").toLowerCase();
-//   if (x === "voice") return "audio";
-//   if (["document","doc","docx","pdf","ppt","pptx","xls","xlsx","sheet"].includes(x)) return "file";
-//   return x;
-// };
+//         const x = String(t || "").toLowerCase();
+//         if (x === "voice") return "audio";
+//         if (["document","doc","docx","pdf","ppt","pptx","xls","xlsx","sheet"].includes(x)) return "file";
+//         return x;
+//       };
+
+//       // Pick the URL sent by client
 //       const incomingUrl =
 //         data.url || data.imageUrl || data.audioUrl || data.videoUrl || data.fileUrl || null;
 
@@ -202,16 +244,15 @@
 //         data.messageType || data.type || inferTypeFromUrl(incomingUrl)
 //       );
 
-//       // optional translation
+//       // ---- filename & size: accept common aliases; coerce to number ----
+//       const originalName = data.fileName ?? data.filename ?? data.name ?? null;
+//       const rawSize = data.size ?? data.fileSize ?? null;
+//       const sizeNum = typeof rawSize === "number" ? rawSize : Number(rawSize);
+//       const finalSize = Number.isFinite(sizeNum) ? sizeNum : null;
+
+//       // Optional: transcription for audio
 //       let translatedText = null;
-//       if (messageType === "text" && data.text) {
-//         try {
-//           // const res = await translate(data.text, { to: "en" });
-//           // translatedText = res.text;
-//         } catch (err) {
-//           console.error("Translation error:", err.message);
-//         }
-//       } else if (messageType === "audio" && (data.audioUrl || incomingUrl)) {
+//       if (messageType === "audio" && (data.audioUrl || incomingUrl)) {
 //         try {
 //           const filePath = await downloadAudioFile(data.audioUrl || incomingUrl);
 //           const transcription = await transcribeAudio(filePath);
@@ -223,7 +264,7 @@
 //         }
 //       }
 
-//       // build message doc (PERSIST original filename/size)
+//       // Build message document (persist original name/size)
 //       const doc = {
 //         msgByUser: data.sender,
 //         groupId: data.groupId,
@@ -233,27 +274,48 @@
 //         audioUrl: messageType === "audio" ? incomingUrl : null,
 //         videoUrl: messageType === "video" ? incomingUrl : null,
 //         fileUrl:  messageType === "file"  ? incomingUrl : null,
-//          fileName: messageType === "file" ? (data.fileName ?? null) : null,
-//   fileSize: messageType === "file" ? (Number.isFinite(data.size) ? data.size : null) : null,
-
-//   translatedMessage: translatedText || null,
+//         fileName: messageType === "file"  ? originalName : null,
+//         fileSize: messageType === "file"  ? finalSize   : null,
+//         translatedMessage: translatedText || null,
 //       };
 
 //       const saved = await msgModel.create(doc);
 
-//       await Group.findByIdAndUpdate(data.groupId, { lastMessage: saved._id });
-
-//       // emit a normalized message that ALWAYS carries fileName + size
+//       // Update group's last message pointer
+// await Group.findByIdAndUpdate(
+//   data.groupId,
+//   { lastMessage: saved._id, updatedAt: saved.createdAt },
+//   { new: false }
+// );
+//       // Normalized payload that ALWAYS carries fileName/size/url
 //       const savedMessage = normalizeMsgForClient(saved, {
-//   url: incomingUrl,
-//   fileName: data.fileName || null,                    // 👈 keep original
-//   size: typeof data.size === "number" ? data.size : null, // 👈 numeric bytes
-//   clientNonce: data.clientNonce || null,
-//   messageType,
-// });
+//         url: incomingUrl,
+//         fileName: originalName,
+//         size: finalSize,
+//         clientNonce: data.clientNonce || null,
+//         messageType,
+//       });
 
-// io.to(String(data.groupId)).emit("receive-group-msg", savedMessage);
+//       // -------- BROADCASTS --------
+//       // 1) Group room (people who have the group open)
+//       io.to(String(data.groupId)).emit("receive-group-msg", savedMessage);
+//       io.to(String(data.groupId)).emit("groupMessages", {
+//         groupId: String(data.groupId),
+//         messages: [savedMessage],
+//       });
 
+//       // 2) Members’ personal rooms (so they receive it even if the group view isn't open)
+//       const grp = await Group.findById(data.groupId).select("members");
+//       const memberIds = (grp?.members || []).map((m) => m.toString());
+//       for (const uid of memberIds) {
+//         io.to(uid).emit("receive-group-msg", savedMessage);
+//         io.to(uid).emit("groupMessages", {
+//           groupId: String(data.groupId),
+//           messages: [savedMessage],
+//         });
+//       }
+
+//       // ACK for the sender’s optimistic UI
 //       if (typeof ack === "function") ack({ savedMessage });
 //     } catch (err) {
 //       console.error("Error in newGroupMsg:", err.message);
@@ -281,10 +343,16 @@
 //     }
 //   });
 
-//   /* 1-1 message (unchanged, trimmed for brevity) */
+//   /* 1-1 message (kept as you had it) */
 //   socket.on("newMsg", async (data) => {
-//     if (!data.sender || !data.receiver || !data.messageType ||
-//         !isValidObjectId(data.sender) || !isValidObjectId(data.receiver)) return;
+//     if (
+//       !data.sender ||
+//       !data.receiver ||
+//       !data.messageType ||
+//       !isValidObjectId(data.sender) ||
+//       !isValidObjectId(data.receiver)
+//     )
+//       return;
 
 //     let conv = await convModel.findOne({
 //       $or: [
@@ -329,7 +397,12 @@
 //       imageUrl: data.imageUrl || null,
 //       videoUrl: data.videoUrl || null,
 //       audioUrl: data.audioUrl || null,
-//       // fileUrl / fileName / fileSize can be added similarly if you allow files in 1-1
+//      fileUrl:  data.fileUrl  || null,
+// fileName: data.fileName || null,
+// fileSize: data.fileSize || null,
+// // seen:false,
+//     // translatedMessage: translatedText || null,
+//     clientNonce: data.clientNonce || null,
 //     });
 
 //     await message.save();
@@ -360,6 +433,7 @@
 //     io.to(data.receiver).emit("conv", recConversation);
 //   });
 
+//   /* 1-1 seen */
 //   socket.on("seen", async ({ senderId, receiverId }) => {
 //     if (!isValidObjectId(senderId) || !isValidObjectId(receiverId)) return;
 //     try {
@@ -393,6 +467,7 @@
 //     }
 //   });
 
+//   /* voice translation (unchanged) */
 //   socket.on("translateVoice", async ({ audioUrl, receiverId, messageId }) => {
 //     if (!isValidObjectId(receiverId) || !isValidObjectId(messageId)) return;
 
@@ -630,6 +705,109 @@ io.on("connect", async (socket) => {
       socket.emit("error", { msg: "Failed to load group messages" });
     }
   });
+const emitGroupPatched = async (groupId, msgDoc) => {
+  const out = normalizeMsgForClient(msgDoc);
+  io.to(String(groupId)).emit("groupMessagePatched", { groupId: String(groupId), message: out });
+
+  // also to members' personal rooms so they update even if the group page is closed
+  const grp = await Group.findById(groupId).select("members");
+  for (const uid of (grp?.members || [])) {
+    io.to(String(uid)).emit("groupMessagePatched", { groupId: String(groupId), message: out });
+  }
+};
+socket.on("deleteGroupMsg", async ({ groupId, messageId }, ack) => {
+  try {
+    if (!isValidObjectId(groupId) || !isValidObjectId(messageId)) return;
+    const msg = await msgModel.findByIdAndUpdate(
+      messageId,
+      { $addToSet: { deletedFor: socket.userId } },
+      { new: true }
+    );
+    if (msg) await emitGroupPatched(groupId, msg);
+    if (typeof ack === "function") ack({ ok: true });
+  } catch (e) {
+    if (typeof ack === "function") ack({ error: e.message });
+  }
+});
+socket.on("editGroupMsg", async ({ groupId, messageId, text }, ack) => {
+  try {
+    if (!isValidObjectId(groupId) || !isValidObjectId(messageId)) return;
+    const msg = await msgModel.findById(messageId);
+    if (!msg) throw new Error("Message not found");
+    if (String(msg.groupId) !== String(groupId)) throw new Error("Wrong group");
+    if (String(msg.msgByUser) !== String(socket.userId)) throw new Error("Not your message");
+    if ((msg.messageType || "text") !== "text") throw new Error("Only text messages can be edited");
+
+    msg.text = typeof text === "string" ? text : "";
+    msg.isEdited = true;
+    msg.editedAt = new Date();
+    await msg.save();
+
+    await emitGroupPatched(groupId, msg);
+    if (typeof ack === "function") ack({ ok: true });
+  } catch (e) {
+    if (typeof ack === "function") ack({ error: e.message });
+  }
+});
+
+  /* Translate a single group message for the requesting user */
+  socket.on("translateGroupMessage", async ({ groupId, messageId, to }) => {
+    if (!isValidObjectId(groupId) || !isValidObjectId(messageId)) return;
+
+    try {
+      const msg = await msgModel.findById(messageId);
+      if (!msg || String(msg.groupId) !== String(groupId)) {
+        throw new Error("Message not found for this group");
+      }
+
+      // Determine target language: explicit 'to' > user's preferredLanguage > 'en'
+      const me = await User.findById(socket.userId);
+      const targetLang =
+        (typeof to === "string" && to) || me?.preferredLanguage || "en";
+
+      // Prefer stored voice transcription; fall back to text/caption; otherwise transcribe on-demand
+      let source = msg.voiceTranscription || msg.text || msg.caption || "";
+      if (!source && msg.audioUrl) {
+        try {
+          const filePath = await downloadAudioFile(msg.audioUrl);
+          const transcription = await transcribeAudio(filePath);
+          fs.unlinkSync(filePath);
+          source = transcription || "";
+          if (source) {
+            await msgModel.findByIdAndUpdate(messageId, {
+              voiceTranscription: source,
+              text: msg.text || source,
+            });
+          }
+        } catch (e) {
+          console.warn("On-demand transcription failed:", e.message);
+        }
+      }
+
+      if (!source) throw new Error("No text to translate");
+
+      const translated = await translateText(source, targetLang);
+
+      // Persist for future reuse
+      await msgModel.findByIdAndUpdate(messageId, {
+        translatedVoiceText: translated,
+      });
+
+      // Return only to requester
+      socket.emit("groupTranslationResult", {
+        groupId: String(groupId),
+        messageId: String(messageId),
+        translatedText: translated,
+      });
+    } catch (err) {
+      console.error("translateGroupMessage error:", err.message);
+      socket.emit("groupTranslationError", {
+        groupId,
+        messageId,
+        error: "Failed to translate",
+      });
+    }
+  });
 
   /* group: new message */
   socket.on("newGroupMsg", async (data, ack) => {
@@ -659,43 +837,53 @@ io.on("connect", async (socket) => {
       const sizeNum = typeof rawSize === "number" ? rawSize : Number(rawSize);
       const finalSize = Number.isFinite(sizeNum) ? sizeNum : null;
 
-      // Optional: transcription for audio
-      let translatedText = null;
+      // For audio: transcribe only (do NOT auto-translate here)
+      let transcription = null;
       if (messageType === "audio" && (data.audioUrl || incomingUrl)) {
         try {
           const filePath = await downloadAudioFile(data.audioUrl || incomingUrl);
-          const transcription = await transcribeAudio(filePath);
-          translatedText = await translateText(transcription, "en");
-          data.text = transcription;
+          transcription = await transcribeAudio(filePath);
           fs.unlinkSync(filePath);
+          data.text = transcription; // keep for UI fallback
         } catch (err) {
           console.error("Voice processing error:", err.message);
         }
       }
 
-      // Build message document (persist original name/size)
+      // Build message document (persist original name/size + transcription)
       const doc = {
         msgByUser: data.sender,
         groupId: data.groupId,
         messageType,
-        text: messageType === "text" ? (data.text || null) : null,
+        // keep transcription in text as well for UI toggles
+        text:
+          messageType === "audio"
+            ? (transcription || null)
+            : messageType === "text"
+            ? (data.text || null)
+            : null,
         imageUrl: messageType === "image" ? incomingUrl : null,
         audioUrl: messageType === "audio" ? incomingUrl : null,
         videoUrl: messageType === "video" ? incomingUrl : null,
         fileUrl:  messageType === "file"  ? incomingUrl : null,
         fileName: messageType === "file"  ? originalName : null,
         fileSize: messageType === "file"  ? finalSize   : null,
-        translatedMessage: translatedText || null,
+        // voice-specific fields:
+        voiceTranscription: messageType === "audio" ? (transcription || null) : null,
+        translatedVoiceText: null, // will be filled when user requests translation
+        translatedMessage: null,   // don't auto-translate audio into this legacy field
+        clientNonce: data.clientNonce || null,
       };
 
       const saved = await msgModel.create(doc);
 
       // Update group's last message pointer
-await Group.findByIdAndUpdate(
-  data.groupId,
-  { lastMessage: saved._id, updatedAt: saved.createdAt },
-  { new: false }
-);
+      await Group.findByIdAndUpdate(
+        data.groupId,
+        { lastMessage: saved._id, updatedAt: saved.createdAt },
+        { new: false }
+      );
+
       // Normalized payload that ALWAYS carries fileName/size/url
       const savedMessage = normalizeMsgForClient(saved, {
         url: incomingUrl,
@@ -806,12 +994,10 @@ await Group.findByIdAndUpdate(
       imageUrl: data.imageUrl || null,
       videoUrl: data.videoUrl || null,
       audioUrl: data.audioUrl || null,
-     fileUrl:  data.fileUrl  || null,
-fileName: data.fileName || null,
-fileSize: data.fileSize || null,
-// seen:false,
-    // translatedMessage: translatedText || null,
-    clientNonce: data.clientNonce || null,
+      fileUrl:  data.fileUrl  || null,
+      fileName: data.fileName || null,
+      fileSize: data.fileSize || null,
+      clientNonce: data.clientNonce || null,
     });
 
     await message.save();
@@ -876,7 +1062,7 @@ fileSize: data.fileSize || null,
     }
   });
 
-  /* voice translation (unchanged) */
+  /* voice translation (1-1) */
   socket.on("translateVoice", async ({ audioUrl, receiverId, messageId }) => {
     if (!isValidObjectId(receiverId) || !isValidObjectId(messageId)) return;
 

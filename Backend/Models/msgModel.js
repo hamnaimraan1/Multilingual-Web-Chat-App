@@ -24,7 +24,11 @@ const msgschema = new Schema(
 
     translatedMessage: { type: String, default: null },
     translatedVoiceText: { type: String, default: null }, // ✅ for audio translations
-  voiceTranscription: { type: String, default: null }, // 🆕 Add this
+  voiceTranscription: { type: String, default: null }, 
+  deletedFor: [{ type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] }],
+isEdited: { type: Boolean, default: false },
+editedAt: { type: Date },
+
   groupId: {
   type: Schema.ObjectId,
   ref: "Group",
