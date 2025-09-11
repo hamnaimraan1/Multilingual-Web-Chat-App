@@ -22,7 +22,7 @@
 // } from "lucide-react";
 // import Avatar from "./Avatar";
 // import { useLocalStorage } from "@mantine/hooks";
-// import { useNavigate } from "react-router-dom";
+// import { useNavigate, useLocation } from "react-router-dom";
 // import AddUser from "./AddUser";
 // import EditProfile from "./EditProfile";
 // import axios from "axios";
@@ -35,7 +35,9 @@
 // const fmtTime = (d) => {
 //   try {
 //     const date = new Date(d);
-//     return isNaN(date) ? "" : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+//     return isNaN(date)
+//       ? ""
+//       : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 //   } catch {
 //     return "";
 //   }
@@ -111,10 +113,18 @@
 // };
 
 // const buildPreviewFromMsg = (m, fallbackTime, currentUserId) => {
-//   if (!m) return { text: "", kind: "none", time: fallbackTime || "", senderId: null, senderName: "", prefix: "" };
+//   if (!m)
+//     return {
+//       text: "",
+//       kind: "none",
+//       time: fallbackTime || "",
+//       senderId: null,
+//       senderName: "",
+//       prefix: "",
+//     };
 //   const n = normalizeMessage(m);
 //   const text =
-//     n?.translatedMessage ||
+//     // n?.translatedMessage ||
 //     n?.message ||
 //     n?.text ||
 //     n?.content ||
@@ -134,12 +144,22 @@
 // };
 
 // const extractGroupPreviewFromList = (g, currentUserId) => {
-//   // Full object on list?
 //   const lm = typeof g?.lastMessage === "object" ? g.lastMessage : null;
-//   if (lm) return buildPreviewFromMsg(lm, g?.updatedAt || g?.createdAt, currentUserId);
+//   if (lm)
+//     return buildPreviewFromMsg(
+//       lm,
+//       g?.updatedAt || g?.createdAt,
+//       currentUserId
+//     );
 
-//   // Lightweight fields some APIs provide
-//   if (g?.lastMessageText || g?.lastMessageType || g?.lastMessageAt || g?.lastMessageSenderId || g?.lastMessageSenderName) {
+//   // Lightweight fields from backend (if present)
+//   if (
+//     g?.lastMessageText ||
+//     g?.lastMessageType ||
+//     g?.lastMessageAt ||
+//     g?.lastMessageSenderId ||
+//     g?.lastMessageSenderName
+//   ) {
 //     const time = g?.lastMessageAt || g?.updatedAt || g?.createdAt || "";
 //     const kind = g?.lastMessageType || (g?.lastMessageText ? "text" : "none");
 //     const senderId = g?.lastMessageSenderId || null;
@@ -148,15 +168,30 @@
 //       senderId && currentUserId && String(senderId) === String(currentUserId)
 //         ? "You"
 //         : senderName || "";
-//     return { text: g?.lastMessageText || "", kind, time, senderId, senderName, prefix };
+//     return {
+//       text: g?.lastMessageText || "",
+//       kind,
+//       time,
+//       senderId,
+//       senderName,
+//       prefix,
+//     };
 //   }
 
-//   return { text: "", kind: "none", time: g?.updatedAt || g?.createdAt || "", senderId: null, senderName: "", prefix: "" };
+//   return {
+//     text: "",
+//     kind: "none",
+//     time: g?.updatedAt || g?.createdAt || "",
+//     senderId: null,
+//     senderName: "",
+//     prefix: "",
+//   };
 // };
 
 // /* ---------- component ---------- */
 // const Side = ({ onSelectChat }) => {
 //   const navigate = useNavigate();
+//   const location = useLocation();
 //   const [user, setUser] = useLocalStorage({ key: "userData", defaultValue: {} });
 
 //   const socket =
@@ -172,8 +207,6 @@
 //   const [activeTab, setActiveTab] = useState("groups");
 
 //   /* chats state */
-//   // NOTE: keep variable name as in your code
-  
 //   const [allUsers, setAllUsers] = useState([]);
 //   const [typingMap, setTypingMap] = useState({});
 //   const [lastPreviewMap, setLastPreviewMap] = useState({});
@@ -181,7 +214,10 @@
 //   /* groups state */
 //   const [groups, setGroups] = useState([]);
 //   const [groupsLoading, setGroupsLoading] = useState(false);
-//   const [groupUnread, setGroupUnread] = useState({});
+//   const [groupUnread, setGroupUnread] = useLocalStorage({
+//     key: "groupUnread",
+//     defaultValue: {},
+//   });
 
 //   /* ui state */
 //   const [search, setSearch] = useState("");
@@ -233,7 +269,9 @@
 
 //     const onTyping = ({ from, to, isTyping }) => {
 //       if (!from || String(to) !== String(user._id)) return;
-//       setTypingMap((m) => (isTyping ? { ...m, [from]: Date.now() } : { ...m, [from]: 0 }));
+//       setTypingMap((m) =>
+//         isTyping ? { ...m, [from]: Date.now() } : { ...m, [from]: 0 }
+//       );
 //     };
 
 //     const onMessage = (payload) => {
@@ -259,31 +297,22 @@
 //   }, [socket, user?._id, lastPreviewMap]);
 
 //   /* ---------- groups load + robust enrichment ---------- */
-
-//   // Try several common endpoints to fetch only the last message of a group.
 //   const fetchGroupLastMessage = async (groupId) => {
-//     const tryGet = async (urlBuilder, label) => {
+//     const tryGet = async (urlBuilder) => {
 //       try {
 //         const res = await http.get(urlBuilder(groupId));
-//         console.debug("[groups:last] OK", label, res?.data);
 //         return res?.data || null;
-//       } catch (e) {
-//         console.debug("[groups:last] FAIL", label, e?.response?.status || e?.message);
+//       } catch {
 //         return null;
 //       }
 //     };
 
-//     // 1) Explicit last endpoint
 //     let data =
-//       (await tryGet((id) => `/api/groups/${id}/last`, "groups/:id/last`")) ||
-//       // 2) messages?limit=1 (descending by default in many APIs)
-//       (await tryGet((id) => `/api/groups/${id}/messages?limit=1`, "groups/:id/messages?limit=1")) ||
-//       // 3) global messages endpoint filtered by group
-//       (await tryGet((id) => `/api/messages?groupId=${id}&limit=1`, "messages?groupId`")) ||
-//       // 4) another common variant
-//       (await tryGet((id) => `/api/messages/group/${id}?limit=1`, "messages/group/:id`"));
+//       (await tryGet((id) => `/api/groups/${id}/last`)) ||
+//       (await tryGet((id) => `/api/groups/${id}/messages?limit=1`)) ||
+//       (await tryGet((id) => `/api/messages?groupId=${id}&limit=1`)) ||
+//       (await tryGet((id) => `/api/messages/group/${id}?limit=1`));
 
-//     // Normalize to a single message object
 //     if (!data) return null;
 
 //     const msg =
@@ -301,7 +330,6 @@
 //       setGroupsLoading(true);
 //       const { data } = await http.get("/api/groups");
 //       const list = data?.groups || [];
-//       console.debug("[groups:list]", list);
 
 //       // 1) provisional previews
 //       let next = list.map((g) => ({
@@ -322,35 +350,33 @@
 //         });
 //       });
 
-//       // 2) enrich where preview is missing or lastMessage not embedded
+//       // 2) enrich where preview missing or lastMessage not embedded
 //       const need = next.filter((g) => {
 //         const p = g.preview || {};
-//         const lastIsObject = typeof g?.lastMessage === "object" && g?.lastMessage;
+//         const lastIsObject =
+//           typeof g?.lastMessage === "object" && g?.lastMessage;
 //         return (!p.text && (p.kind === "none" || p.kind === "text")) || !lastIsObject;
 //       });
 
 //       if (need.length) {
 //         const results = await Promise.allSettled(
 //           need.map(async (g) => {
-//             // Prefer detail endpoint first
 //             let detail = null;
 //             try {
 //               const res = await http.get(`/api/groups/${g._id}`);
 //               detail = res?.data?.group || res?.data || null;
-//               console.debug("[groups:detail]", g._id, detail);
-//             } catch (e) {
-//               console.debug("[groups:detail] FAIL", g._id, e?.response?.status || e?.message);
-//             }
+//             } catch {}
 
 //             let last =
-//               (detail && typeof detail.lastMessage === "object" && detail.lastMessage) ||
-//               (detail && Array.isArray(detail.messages) && detail.messages[detail.messages.length - 1]) ||
+//               (detail &&
+//                 typeof detail.lastMessage === "object" &&
+//                 detail.lastMessage) ||
+//               (detail &&
+//                 Array.isArray(detail.messages) &&
+//                 detail.messages[detail.messages.length - 1]) ||
 //               null;
 
-//             // If still no last, try the fallback chain
-//             if (!last) {
-//               last = await fetchGroupLastMessage(g._id);
-//             }
+//             if (!last) last = await fetchGroupLastMessage(g._id);
 
 //             return { id: g._id, detail, last };
 //           })
@@ -364,7 +390,9 @@
 //             const old = by.get(id);
 //             const preview = buildPreviewFromMsg(
 //               last,
-//               (detail && (detail.updatedAt || detail.createdAt)) || old?.updatedAt || old?.createdAt,
+//               (detail && (detail.updatedAt || detail.createdAt)) ||
+//                 old?.updatedAt ||
+//                 old?.createdAt,
 //               user?._id
 //             );
 //             by.set(id, { ...old, preview });
@@ -384,11 +412,61 @@
 //     // eslint-disable-next-line react-hooks/exhaustive-deps
 //   }, [activeTab, user?._id]);
 
+//   /* ---------- unread badges: increment on new group msgs ---------- */
+//   useEffect(() => {
+//     if (!socket || !user?._id) return;
+
+//     const bump = (gid, fromId) => {
+//       if (!gid) return;
+//       // skip if I'm the sender
+//       if (fromId && String(fromId) === String(user._id)) return;
+//       // skip if group is currently open
+//       if (location.pathname === `/g/${gid}`) return;
+//       setGroupUnread((prev) => ({ ...prev, [gid]: (prev?.[gid] || 0) + 1 }));
+//     };
+
+//     const onReceiveSingle = (m) => {
+//       const gid =
+//         String(m?.groupId || m?.group || m?.group_id || m?.groupID || "");
+//       const from =
+//         String(m?.msgByUser?._id || m?.msgByUser || m?.sender || "");
+//       bump(gid, from);
+//     };
+
+//     const onReceiveBatch = (payload) => {
+//       const gid = String(payload?.groupId || "");
+//       const list = Array.isArray(payload?.messages) ? payload.messages : [];
+//       for (const m of list) {
+//         const from =
+//           String(m?.msgByUser?._id || m?.msgByUser || m?.sender || "");
+//         bump(gid, from);
+//       }
+//     };
+
+//     socket.on("receive-group-msg", onReceiveSingle);
+//     socket.on("groupMessages", onReceiveBatch);
+//     return () => {
+//       socket.off("receive-group-msg", onReceiveSingle);
+//       socket.off("groupMessages", onReceiveBatch);
+//     };
+//   }, [socket, user?._id, location.pathname, setGroupUnread]);
+
+//   /* ---------- unread badges: clear when opening a group ---------- */
+//   useEffect(() => {
+//     const m = location.pathname.match(/^\/g\/([a-f0-9]{24})$/i);
+//     if (!m) return;
+//     const gid = m[1];
+//     setGroupUnread((prev) => ({ ...prev, [gid]: 0 }));
+//     socket?.emit("seenGroup", { groupId: gid, userId: user?._id });
+//   }, [location.pathname, setGroupUnread, socket, user?._id]);
+
 //   /* close menus on outside click */
 //   useEffect(() => {
 //     const onDocClick = (e) => {
-//       if (chatMenuRef.current && !chatMenuRef.current.contains(e.target)) setChatMenuOpen(null);
-//       if (groupMenuRef.current && !groupMenuRef.current.contains(e.target)) setGroupMenuOpen(null);
+//       if (chatMenuRef.current && !chatMenuRef.current.contains(e.target))
+//         setChatMenuOpen(null);
+//       if (groupMenuRef.current && !groupMenuRef.current.contains(e.target))
+//         setGroupMenuOpen(null);
 //     };
 //     document.addEventListener("click", onDocClick);
 //     return () => document.removeEventListener("click", onDocClick);
@@ -407,7 +485,10 @@
 //       .split(regex)
 //       .map((part, i) =>
 //         regex.test(part) ? (
-//           <span key={i} className="bg-emerald-300/30 text-emerald-200 px-0.5 rounded">
+//           <span
+//             key={i}
+//             className="bg-emerald-300/30 text-emerald-200 px-0.5 rounded"
+//           >
 //             {part}
 //           </span>
 //         ) : (
@@ -427,10 +508,15 @@
 //   const filteredChats = useMemo(() => {
 //     const q = search.trim().toLowerCase();
 //     if (!q) return allUsers;
-//     return allUsers.filter((c) => (c?.userDetails?.name || "").toLowerCase().includes(q));
+//     return allUsers.filter((c) =>
+//       (c?.userDetails?.name || "").toLowerCase().includes(q)
+//     );
 //   }, [allUsers, search]);
 
-//   const archivedChats = useMemo(() => filteredChats.filter((c) => c?.isArchived), [filteredChats]);
+//   const archivedChats = useMemo(
+//     () => filteredChats.filter((c) => c?.isArchived),
+//     [filteredChats]
+//   );
 //   const notArchivedChats = useMemo(
 //     () => filteredChats.filter((c) => !c?.isArchived),
 //     [filteredChats]
@@ -472,7 +558,8 @@
 //   );
 
 //   const groupsLastActive = (g) =>
-//     new Date(g?.preview?.time || g?.updatedAt || g?.createdAt || 0).getTime() || 0;
+//     new Date(g?.preview?.time || g?.updatedAt || g?.createdAt || 0).getTime() ||
+//     0;
 
 //   const notArchivedGroupsSorted = useMemo(() => {
 //     const arr = [...notArchivedGroups];
@@ -495,10 +582,29 @@
 
 //   /* ---------- actions: chats & groups (unchanged) ---------- */
 //   const chatActionLabels = {
-//     mute: { loading: "Muting chat…", successOn: "Chat muted", successOff: "Chat unmuted", error: "Failed to mute chat" },
-//     archive: { loading: "Archiving chat…", successOn: "Chat archived", successOff: "Chat unarchived", error: "Failed to archive chat" },
-//     pin: { loading: "Pinning chat…", successOn: "Chat pinned", successOff: "Chat unpinned", error: "Failed to pin chat" },
-//     delete: { loading: "Deleting chat…", successOn: "Chat deleted", error: "Failed to delete chat" },
+//     mute: {
+//       loading: "Muting chat…",
+//       successOn: "Chat muted",
+//       successOff: "Chat unmuted",
+//       error: "Failed to mute chat",
+//     },
+//     archive: {
+//       loading: "Archiving chat…",
+//       successOn: "Chat archived",
+//       successOff: "Chat unarchived",
+//       error: "Failed to archive chat",
+//     },
+//     pin: {
+//       loading: "Pinning chat…",
+//       successOn: "Chat pinned",
+//       successOff: "Chat unpinned",
+//       error: "Failed to pin chat",
+//     },
+//     delete: {
+//       loading: "Deleting chat…",
+//       successOn: "Chat deleted",
+//       error: "Failed to delete chat",
+//     },
 //   };
 
 //   const handleChatAction = async (chatId, action) => {
@@ -532,26 +638,58 @@
 //         loading: labels.loading,
 //         success: (res) => {
 //           if (action === "delete") return labels.successOn;
-//           if (action === "mute") return res?.data?.isMuted ? labels.successOn : labels.successOff;
-//           if (action === "archive") return res?.data?.isArchived ? labels.successOn : labels.successOff;
-//           if (action === "pin") return res?.data?.isPinned ? labels.successOn : labels.successOff;
+//           if (action === "mute")
+//             return res?.data?.isMuted ? labels.successOn : labels.successOff;
+//           if (action === "archive")
+//             return res?.data?.isArchived
+//               ? labels.successOn
+//               : labels.successOff;
+//           if (action === "pin")
+//             return res?.data?.isPinned ? labels.successOn : labels.successOff;
 //           return "Done";
 //         },
 //         error: (err) => {
 //           setAllUsers(prev);
-//           return err?.response?.data?.message || labels.error || "Something went wrong";
+//           return (
+//             err?.response?.data?.message ||
+//             labels.error ||
+//             "Something went wrong"
+//           );
 //         },
 //       },
-//       { success: { duration: 2000 }, error: { duration: 2200 }, loading: { duration: 100000 } }
+//       {
+//         success: { duration: 2000 },
+//         error: { duration: 2200 },
+//         loading: { duration: 100000 },
+//       }
 //     );
 //     setChatMenuOpen(null);
 //   };
 
 //   const groupActionLabels = {
-//     mute: { loading: "Muting group…", successOn: "Group muted", successOff: "Group unmuted", error: "Failed to mute group" },
-//     archive: { loading: "Archiving group…", successOn: "Group archived", successOff: "Group unarchived", error: "Failed to archive group" },
-//     pin: { loading: "Pinning group…", successOn: "Group pinned", successOff: "Group unpinned", error: "Failed to pin group" },
-//     delete: { loading: "Deleting group…", successOn: "Group deleted", error: "Failed to delete group" },
+//     mute: {
+//       loading: "Muting group…",
+//       successOn: "Group muted",
+//       successOff: "Group unmuted",
+//       error: "Failed to mute group",
+//     },
+//     archive: {
+//       loading: "Archiving group…",
+//       successOn: "Group archived",
+//       successOff: "Group unarchived",
+//       error: "Failed to archive group",
+//     },
+//     pin: {
+//       loading: "Pinning group…",
+//       successOn: "Group pinned",
+//       successOff: "Group unpinned",
+//       error: "Failed to pin group",
+//     },
+//     delete: {
+//       loading: "Deleting group…",
+//       successOn: "Group deleted",
+//       error: "Failed to delete group",
+//     },
 //   };
 
 //   const openArchivedIfArchiving = (action, wasArchived) => {
@@ -592,13 +730,22 @@
 //       req,
 //       {
 //         loading: labels.loading,
-//         success: (res) => (action === "delete" ? labels.successOn : res?.data?.message || "Done"),
+//         success: (res) =>
+//           action === "delete" ? labels.successOn : res?.data?.message || "Done",
 //         error: (err) => {
 //           setGroups(prev);
-//           return err?.response?.data?.message || labels.error || "Something went wrong";
+//           return (
+//             err?.response?.data?.message ||
+//             labels.error ||
+//             "Something went wrong"
+//           );
 //         },
 //       },
-//       { success: { duration: 2000 }, error: { duration: 2200 }, loading: { duration: 100000 } }
+//       {
+//         success: { duration: 2000 },
+//         error: { duration: 2200 },
+//         loading: { duration: 100000 },
+//       }
 //     );
 //     setGroupMenuOpen(null);
 //   };
@@ -607,7 +754,8 @@
 //   const ChatRow = ({ conv }) => {
 //     const pid = conv?.userDetails?._id;
 //     const last = pid ? lastPreviewMap[pid] : null;
-//     const isTypingActive = typingMap[pid] && Date.now() - typingMap[pid] < 3500;
+//     const isTypingActive =
+//       typingMap[pid] && Date.now() - typingMap[pid] < 3500;
 
 //     const preview = isTypingActive ? (
 //       <span className="text-emerald-400">typing…</span>
@@ -645,22 +793,35 @@
 //           setChatMenuOpen(chatMenuOpen === conv._id ? null : conv._id);
 //         }}
 //       >
-//         <Avatar imageUrl={conv?.userDetails?.profilePic} name={conv?.userDetails?.name} />
+//         <Avatar
+//           imageUrl={conv?.userDetails?.profilePic}
+//           name={conv?.userDetails?.name}
+//         />
 //         <div className="flex-1 min-w-0">
 //           <div className="flex items-center gap-2 min-w-0">
 //             <h3 className="text-zinc-200 font-medium truncate">
 //               {highlightText(conv?.userDetails?.name, search)}
 //             </h3>
-//             {conv?.isPinned && <Pin size={14} className="text-emerald-400/70 shrink-0" />}
-//             {conv?.isMuted && <BellOff size={14} className="text-zinc-500 shrink-0" />}
-//             {conv?.isArchived && <Archive size={14} className="text-zinc-500 shrink-0" />}
+//             {conv?.isPinned && (
+//               <Pin size={14} className="text-emerald-400/70 shrink-0" />
+//             )}
+//             {conv?.isMuted && (
+//               <BellOff size={14} className="text-zinc-500 shrink-0" />
+//             )}
+//             {conv?.isArchived && (
+//               <Archive size={14} className="text-zinc-500 shrink-0" />
+//             )}
 //           </div>
 //           <div className="text-xs text-zinc-500 flex items-center gap-2 min-w-0">
-//             <div className="flex items-center gap-1 min-w-0 truncate">{preview}</div>
+//             <div className="flex items-center gap-1 min-w-0 truncate">
+//               {preview}
+//             </div>
 //           </div>
 //         </div>
 //         <div className="text-right pl-2">
-//           <div className="text-[10px] text-zinc-500">{last?.time ? fmtTime(last.time) : ""}</div>
+//           <div className="text-[10px] text-zinc-500">
+//             {last?.time ? fmtTime(last.time) : ""}
+//           </div>
 //           {!!conv?.unseenMsg && (
 //             <div className="mt-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-emerald-600 text-[10px] text-white">
 //               {conv?.unseenMsg}
@@ -684,16 +845,28 @@
 //               className="absolute right-0 mt-2 bg-[#0e1216] rounded-lg shadow-xl border border-zinc-800 text-sm w-40 py-1"
 //               onClick={(e) => e.stopPropagation()}
 //             >
-//               <button className="block w-full text-left px-4 py-2 hover:bg-zinc-800" onClick={() => handleChatAction(conv._id, "mute")}>
+//               <button
+//                 className="block w-full text-left px-4 py-2 hover:bg-zinc-800"
+//                 onClick={() => handleChatAction(conv._id, "mute")}
+//               >
 //                 {conv.isMuted ? "Unmute" : "Mute"}
 //               </button>
-//               <button className="block w-full text-left px-4 py-2 hover:bg-zinc-800" onClick={() => handleChatAction(conv._id, "archive")}>
+//               <button
+//                 className="block w-full text-left px-4 py-2 hover:bg-zinc-800"
+//                 onClick={() => handleChatAction(conv._id, "archive")}
+//               >
 //                 {conv.isArchived ? "Unarchive" : "Archive"}
 //               </button>
-//               <button className="block w-full text-left px-4 py-2 hover:bg-zinc-800" onClick={() => handleChatAction(conv._id, "pin")}>
+//               <button
+//                 className="block w-full text-left px-4 py-2 hover:bg-zinc-800"
+//                 onClick={() => handleChatAction(conv._id, "pin")}
+//               >
 //                 {conv.isPinned ? "Unpin" : "Pin"}
 //               </button>
-//               <button className="block w-full text-left px-4 py-2 hover:bg-red-600/20 text-red-300" onClick={() => handleChatAction(conv._id, "delete")}>
+//               <button
+//                 className="block w-full text-left px-4 py-2 hover:bg-red-600/20 text-red-300"
+//                 onClick={() => handleChatAction(conv._id, "delete")}
+//               >
 //                 Delete
 //               </button>
 //             </div>
@@ -705,7 +878,20 @@
 
 //   const GroupRow = ({ g }) => {
 //     const count = groupUnread[g._id] || 0;
-//     const { text: lastText, kind: lastKind, time: lastTime, prefix } = g.preview || {};
+
+//     // Prefer backend-provided fields; fall back to preview object
+//     const lastKind = g.lastMessageType || g.preview?.kind || "none";
+//     const lastText = g.lastMessageText || g.preview?.text || "";
+//     const lastTime =
+//       g.lastMessageAt || g.preview?.time || g.updatedAt || g.createdAt;
+
+//     const senderId = g.lastMessageSenderId || g.preview?.senderId || null;
+//     const senderName =
+//       g.lastMessageSenderName || g.preview?.senderName || g.preview?.prefix || "";
+
+//     const isYou =
+//       senderId && user?._id && String(senderId) === String(user._id);
+//     const prefix = isYou ? "You" : senderName;
 
 //     const body =
 //       lastKind === "image" ? (
@@ -734,7 +920,12 @@
 //       <div
 //         key={g._id}
 //         className="relative w-full text-left px-4 py-3 border-b border-zinc-900/60 hover:bg-zinc-900/50 transition flex items-center gap-3"
-//         onClick={() => navigate(`/g/${g._id}`)}
+//         onClick={() => {
+//           navigate(`/g/${g._id}`);
+//           // clear badge immediately and mark seen
+//           setGroupUnread((prev) => ({ ...prev, [g._id]: 0 }));
+//           socket?.emit("seenGroup", { groupId: g._id, userId: user?._id });
+//         }}
 //         onContextMenu={(e) => {
 //           e.preventDefault();
 //           setGroupMenuOpen(groupMenuOpen === g._id ? null : g._id);
@@ -748,18 +939,29 @@
 //         <div className="flex-1 min-w-0">
 //           <div className="flex items-center gap-2">
 //             <div className="font-medium truncate text-zinc-200">{g.name}</div>
-//             {g?.isPinned && <Pin size={14} className="text-emerald-400/70 shrink-0" />}
-//             {g?.isMuted && <BellOff size={14} className="text-zinc-500 shrink-0" />}
-//             {g?.isArchived && <Archive size={14} className="text-zinc-500 shrink-0" />}
+//             {g?.isPinned && (
+//               <Pin size={14} className="text-emerald-400/70 shrink-0" />
+//             )}
+//             {g?.isMuted && (
+//               <BellOff size={14} className="text-zinc-500 shrink-0" />
+//             )}
+//             {g?.isArchived && (
+//               <Archive size={14} className="text-zinc-500 shrink-0" />
+//             )}
 //           </div>
 //           <div className="text-xs text-zinc-500 flex items-center gap-2 min-w-0">
 //             <div className="flex items-center gap-1 min-w-0 truncate">
-//               {prefix ? <span className="text-zinc-400">{prefix}:</span> : null} {body}
+//               {prefix ? (
+//                 <span className="text-zinc-400">{prefix}:</span>
+//               ) : null}{" "}
+//               {body}
 //             </div>
 //           </div>
 //         </div>
 //         <div className="text-right">
-//           <div className="text-[10px] text-zinc-500">{lastTime ? fmtTime(lastTime) : ""}</div>
+//           <div className="text-[10px] text-zinc-500">
+//             {lastTime ? fmtTime(lastTime) : ""}
+//           </div>
 //           {count > 0 && (
 //             <div className="mt-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-emerald-600 text-[10px] text-white">
 //               {count}
@@ -783,17 +985,31 @@
 //               className="absolute right-0 mt-2 bg-[#0e1216] rounded-lg shadow-xl border border-zinc-800 text-sm w-44 py-1"
 //               onClick={(e) => e.stopPropagation()}
 //             >
-//               <button className="block w-full text-left px-4 py-2 hover:bg-zinc-800" onClick={() => handleGroupAction(g._id, "mute")}>
+//               <button
+//                 className="block w-full text-left px-4 py-2 hover:bg-zinc-800"
+//                 onClick={() => handleGroupAction(g._id, "mute")}
+//               >
 //                 {g.isMuted ? "Unmute group" : "Mute group"}
 //               </button>
-//               <button className="block w-full text-left px-4 py-2 hover:bg-zinc-800" onClick={() => handleGroupAction(g._id, "archive")}>
+//               <button
+//                 className="block w-full text-left px-4 py-2 hover:bg-zinc-800"
+//                 onClick={() => handleGroupAction(g._id, "archive")}
+//               >
 //                 {g.isArchived ? "Unarchive group" : "Archive group"}
 //               </button>
-//               <button className="block w-full text-left px-4 py-2 hover:bg-zinc-800" onClick={() => handleGroupAction(g._id, "pin")}>
+//               <button
+//                 className="block w-full text-left px-4 py-2 hover:bg-zinc-800"
+//                 onClick={() => handleGroupAction(g._id, "pin")}
+//               >
 //                 {g.isPinned ? "Unpin group" : "Pin group"}
 //               </button>
-//               <button className="block w-full text-left px-4 py-2 hover:bg-red-600/20 text-red-300" onClick={() => handleGroupAction(g._id, "delete")}>
-//                 <span className="inline-flex items-center gap-2"><Trash2 size={14}/> Delete group</span>
+//               <button
+//                 className="block w-full text-left px-4 py-2 hover:bg-red-600/20 text-red-300"
+//                 onClick={() => handleGroupAction(g._id, "delete")}
+//               >
+//                 <span className="inline-flex items-center gap-2">
+//                   <Trash2 size={14} /> Delete group
+//                 </span>
 //               </button>
 //             </div>
 //           )}
@@ -823,28 +1039,49 @@
 //       {/* Left bar */}
 //       <div className="bg-[#0b1016] border-r border-zinc-800/70 h-full py-5 flex flex-col items-center justify-between">
 //         <div className="space-y-2">
-//           <div title="Chats" className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-emerald-400 rounded-lg hover:bg-emerald-500/10 transition" onClick={() => setActiveTab("chats")}>
+//           <div
+//             title="Chats"
+//             className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-emerald-400 rounded-lg hover:bg-emerald-500/10 transition"
+//             onClick={() => setActiveTab("chats")}
+//           >
 //             <MessageCircle size={20} />
 //           </div>
-//           <div title="Add friend" onClick={() => setOpenSearchUser(true)} className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-emerald-400 rounded-lg hover:bg-emerald-500/10 transition">
+//           <div
+//             title="Add friend"
+//             onClick={() => setOpenSearchUser(true)}
+//             className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-emerald-400 rounded-lg hover:bg-emerald-500/10 transition"
+//           >
 //             <UserPlus size={20} />
 //           </div>
-//           <div title="Groups" onClick={() => setActiveTab("groups")} className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-emerald-400 rounded-lg hover:bg-emerald-500/10 transition">
+//           <div
+//             title="Groups"
+//             onClick={() => setActiveTab("groups")}
+//             className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-emerald-400 rounded-lg hover:bg-emerald-500/10 transition"
+//           >
 //             <Users size={20} />
 //           </div>
 //         </div>
 
 //         <div className="flex flex-col items-center gap-2">
 //           <button onClick={() => setEditProfile(true)}>
-//             <Avatar imageUrl={user?.profilePic} name={user?.name} userId={user?._id} />
+//             <Avatar
+//               imageUrl={user?.profilePic}
+//               name={user?.name}
+//               userId={user?._id}
+//             />
 //           </button>
-//           <button title="Logout" onClick={handleLogout} className="text-zinc-300 hover:text-rose-400 hover:bg-rose-500/10 p-2 rounded-lg transition">
+//           <button
+//             title="Logout"
+//             onClick={handleLogout}
+//             className="text-zinc-300 hover:text-rose-400 hover:bg-rose-500/10 p-2 rounded-lg transition"
+//           >
 //             <LogOut size={20} />
 //           </button>
 //         </div>
 //       </div>
 
 //       {/* Main list */}
+
 //       <div className="w-full bg-[#090d12]">
 //         {/* Header */}
 //         <div className="h-14 px-4 border-b border-zinc-800/70 flex items-center justify-between">
@@ -869,13 +1106,21 @@
 
 //           <div className="mt-3 grid grid-cols-2 gap-2">
 //             <button
-//               className={`py-2 text-sm font-medium rounded-lg border ${activeTab === "chats" ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10" : "text-zinc-400 border-zinc-700/60 hover:bg-zinc-800/50"}`}
+//               className={`py-2 text-sm font-medium rounded-lg border ${
+//                 activeTab === "chats"
+//                   ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10"
+//                   : "text-zinc-400 border-zinc-700/60 hover:bg-zinc-800/50"
+//               }`}
 //               onClick={() => setActiveTab("chats")}
 //             >
 //               Chats
 //             </button>
 //             <button
-//               className={`py-2 text-sm font-medium rounded-lg border ${activeTab === "groups" ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10" : "text-zinc-400 border-zinc-700/60 hover:bg-zinc-800/50"}`}
+//               className={`py-2 text-sm font-medium rounded-lg border ${
+//                 activeTab === "groups"
+//                   ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10"
+//                   : "text-zinc-400 border-zinc-700/60 hover:bg-zinc-800/50"
+//               }`}
 //               onClick={() => setActiveTab("groups")}
 //             >
 //               Groups
@@ -899,7 +1144,9 @@
 //         )}
 //         {activeTab === "chats" && showArchivedChats && archivedChats.length > 0 && (
 //           <div className="divide-y divide-zinc-900/60">
-//             {archivedChats.map((c) => <ChatRow key={c?._id} conv={c} />)}
+//             {archivedChats.map((c) => (
+//               <ChatRow key={c?._id} conv={c} />
+//             ))}
 //           </div>
 //         )}
 
@@ -908,18 +1155,26 @@
 //           {activeTab === "chats" ? (
 //             <>
 //               {pinnedChats.length > 0 && (
-//                 <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">Pinned</div>
+//                 <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">
+//                   Pinned
+//                 </div>
 //               )}
 //               <div className="divide-y divide-zinc-900/60">
-//                 {pinnedChats.map((c) => <ChatRow key={c?._id} conv={c} />)}
+//                 {pinnedChats.map((c) => (
+//                   <ChatRow key={c?._id} conv={c} />
+//                 ))}
 //               </div>
 
 //               {pinnedChats.length > 0 && regularChats.length > 0 && (
-//                 <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">Chats</div>
+//                 <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">
+//                   Chats
+//                 </div>
 //               )}
 //               {regularChats.length > 0 ? (
 //                 <div className="divide-y divide-zinc-900/60">
-//                   {regularChats.map((c) => <ChatRow key={c?._id} conv={c} />)}
+//                   {regularChats.map((c) => (
+//                     <ChatRow key={c?._id} conv={c} />
+//                   ))}
 //                 </div>
 //               ) : pinnedChats.length === 0 && archivedChats.length === 0 ? (
 //                 <div className="mt-12 text-center text-zinc-400">
@@ -946,7 +1201,9 @@
 
 //               {showArchivedGroups && archivedGroups.length > 0 && (
 //                 <div className="divide-y divide-zinc-900/60">
-//                   {archivedGroups.map((g) => <GroupRow key={g._id} g={g} />)}
+//                   {archivedGroups.map((g) => (
+//                     <GroupRow key={g._id} g={g} />
+//                   ))}
 //                 </div>
 //               )}
 
@@ -956,17 +1213,25 @@
 //               )}
 
 //               {pinnedGroups.length > 0 && (
-//                 <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">Pinned</div>
+//                 <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">
+//                   Pinned
+//                 </div>
 //               )}
 //               <div className="divide-y divide-zinc-900/60">
-//                 {pinnedGroups.map((g) => <GroupRow key={g._id} g={g} />)}
+//                 {pinnedGroups.map((g) => (
+//                   <GroupRow key={g._id} g={g} />
+//                 ))}
 //               </div>
 
 //               {pinnedGroups.length > 0 && regularGroups.length > 0 && (
-//                 <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">Groups</div>
+//                 <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">
+//                   Groups
+//                 </div>
 //               )}
 //               <div className="divide-y divide-zinc-900/60">
-//                 {regularGroups.map((g) => <GroupRow key={g._id} g={g} />)}
+//                 {regularGroups.map((g) => (
+//                   <GroupRow key={g._id} g={g} />
+//                 ))}
 //               </div>
 //             </>
 //           )}
@@ -974,7 +1239,9 @@
 //       </div>
 
 //       {openSearchUser && <AddUser setOpenSearchUser={setOpenSearchUser} />}
-//       {editProfile && <EditProfile setEditProfile={setEditProfile} user={user} setUser={setUser} />}
+//       {editProfile && (
+//         <EditProfile setEditProfile={setEditProfile} user={user} setUser={setUser} />
+//       )}
 //     </div>
 //   );
 // };
@@ -1105,7 +1372,6 @@ const buildPreviewFromMsg = (m, fallbackTime, currentUserId) => {
     };
   const n = normalizeMessage(m);
   const text =
-    n?.translatedMessage ||
     n?.message ||
     n?.text ||
     n?.content ||
@@ -1133,7 +1399,6 @@ const extractGroupPreviewFromList = (g, currentUserId) => {
       currentUserId
     );
 
-  // Lightweight fields from backend (if present)
   if (
     g?.lastMessageText ||
     g?.lastMessageType ||
@@ -1168,6 +1433,9 @@ const extractGroupPreviewFromList = (g, currentUserId) => {
     prefix: "",
   };
 };
+
+/* --- route helpers --- */
+const isGroupRoute = (p) => /^\/g(?:\/|$)/i.test(p);
 
 /* ---------- component ---------- */
 const Side = ({ onSelectChat }) => {
@@ -1209,6 +1477,36 @@ const Side = ({ onSelectChat }) => {
 
   const chatMenuRef = useRef(null);
   const groupMenuRef = useRef(null);
+
+  /* ---------------- global DM clear (covers many parent patterns) ---------------- */
+  const clearDMEverywhere = () => {
+    // 1) notify parent prop
+    onSelectChat?.(null);
+    // 2) nuke common storage keys parents use
+    try {
+      localStorage.removeItem("activeThread");
+      localStorage.removeItem("activeChat");
+      localStorage.removeItem("activeChatId");
+      sessionStorage.removeItem("activeThread");
+      sessionStorage.removeItem("activeChat");
+      sessionStorage.removeItem("activeChatId");
+    } catch {}
+    // 3) broadcast a window-level event so any parent/listener can react
+    try {
+      window.dispatchEvent(new CustomEvent("active-thread:clear"));
+    } catch {}
+  };
+
+  /* --- keep tab synced with URL --- */
+  useEffect(() => {
+    const isGroups = isGroupRoute(location.pathname);
+    setActiveTab(isGroups ? "groups" : "chats");
+    if (isGroups) {
+      // Force-clear any latched DM when on /g (even /g with no id)
+      clearDMEverywhere();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   /* ---------- sockets: 1:1 previews ---------- */
   const requestLastForPeer = (peerId) => {
@@ -1277,7 +1575,7 @@ const Side = ({ onSelectChat }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, user?._id, lastPreviewMap]);
 
-  /* ---------- groups load + robust enrichment ---------- */
+  /* ---------- groups load + enrichment ---------- */
   const fetchGroupLastMessage = async (groupId) => {
     const tryGet = async (urlBuilder) => {
       try {
@@ -1312,7 +1610,6 @@ const Side = ({ onSelectChat }) => {
       const { data } = await http.get("/api/groups");
       const list = data?.groups || [];
 
-      // 1) provisional previews
       let next = list.map((g) => ({
         ...g,
         preview: extractGroupPreviewFromList(g, user?._id),
@@ -1331,7 +1628,6 @@ const Side = ({ onSelectChat }) => {
         });
       });
 
-      // 2) enrich where preview missing or lastMessage not embedded
       const need = next.filter((g) => {
         const p = g.preview || {};
         const lastIsObject =
@@ -1393,15 +1689,13 @@ const Side = ({ onSelectChat }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, user?._id]);
 
-  /* ---------- unread badges: increment on new group msgs ---------- */
+  /* ---------- unread badges ---------- */
   useEffect(() => {
     if (!socket || !user?._id) return;
 
     const bump = (gid, fromId) => {
       if (!gid) return;
-      // skip if I'm the sender
       if (fromId && String(fromId) === String(user._id)) return;
-      // skip if group is currently open
       if (location.pathname === `/g/${gid}`) return;
       setGroupUnread((prev) => ({ ...prev, [gid]: (prev?.[gid] || 0) + 1 }));
     };
@@ -1432,7 +1726,6 @@ const Side = ({ onSelectChat }) => {
     };
   }, [socket, user?._id, location.pathname, setGroupUnread]);
 
-  /* ---------- unread badges: clear when opening a group ---------- */
   useEffect(() => {
     const m = location.pathname.match(/^\/g\/([a-f0-9]{24})$/i);
     if (!m) return;
@@ -1478,7 +1771,7 @@ const Side = ({ onSelectChat }) => {
       );
   };
 
-  /* ---------- chats: sorting/filtering ---------- */
+  /* ---------- chats filtering/sorting ---------- */
   const getLastActive = (c) => {
     const pid = c?.userDetails?._id;
     const p = pid ? lastPreviewMap[pid] : null;
@@ -1522,7 +1815,7 @@ const Side = ({ onSelectChat }) => {
     [notArchivedChatsSorted]
   );
 
-  /* ---------- groups: sorting/filtering ---------- */
+  /* ---------- groups filtering/sorting ---------- */
   const filteredGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return groups;
@@ -1561,7 +1854,7 @@ const Side = ({ onSelectChat }) => {
     [notArchivedGroupsSorted]
   );
 
-  /* ---------- actions: chats & groups (unchanged) ---------- */
+  /* ---------- actions: chats & groups ---------- */
   const chatActionLabels = {
     mute: {
       loading: "Muting chat…",
@@ -1767,6 +2060,7 @@ const Side = ({ onSelectChat }) => {
         className="relative flex items-center gap-3 px-4 py-3 border-b border-zinc-900/60 hover:bg-zinc-900/50 cursor-pointer"
         onClick={() => {
           navigate(`/${pid}`);
+          // explicitly select DM
           onSelectChat?.(conv.userDetails);
         }}
         onContextMenu={(e) => {
@@ -1860,7 +2154,6 @@ const Side = ({ onSelectChat }) => {
   const GroupRow = ({ g }) => {
     const count = groupUnread[g._id] || 0;
 
-    // Prefer backend-provided fields; fall back to preview object
     const lastKind = g.lastMessageType || g.preview?.kind || "none";
     const lastText = g.lastMessageText || g.preview?.text || "";
     const lastTime =
@@ -1903,9 +2196,10 @@ const Side = ({ onSelectChat }) => {
         className="relative w-full text-left px-4 py-3 border-b border-zinc-900/60 hover:bg-zinc-900/50 transition flex items-center gap-3"
         onClick={() => {
           navigate(`/g/${g._id}`);
-          // clear badge immediately and mark seen
           setGroupUnread((prev) => ({ ...prev, [g._id]: 0 }));
           socket?.emit("seenGroup", { groupId: g._id, userId: user?._id });
+          // safety: also clear any DM
+          clearDMEverywhere();
         }}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -1999,6 +2293,8 @@ const Side = ({ onSelectChat }) => {
     );
   };
 
+ 
+
   /* ---------- render ---------- */
   return (
     <div className="w-full h-full grid grid-cols-[64px,1fr] bg-[#0a0f14] text-zinc-100">
@@ -2020,13 +2316,18 @@ const Side = ({ onSelectChat }) => {
       {/* Left bar */}
       <div className="bg-[#0b1016] border-r border-zinc-800/70 h-full py-5 flex flex-col items-center justify-between">
         <div className="space-y-2">
+          {/* Chats → navigate to "/" */}
           <div
             title="Chats"
             className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-emerald-400 rounded-lg hover:bg-emerald-500/10 transition"
-            onClick={() => setActiveTab("chats")}
+            onClick={() => {
+              setActiveTab("chats");
+              navigate("/");
+            }}
           >
             <MessageCircle size={20} />
           </div>
+
           <div
             title="Add friend"
             onClick={() => setOpenSearchUser(true)}
@@ -2034,9 +2335,15 @@ const Side = ({ onSelectChat }) => {
           >
             <UserPlus size={20} />
           </div>
+
+          {/* Groups → navigate to "/g" */}
           <div
             title="Groups"
-            onClick={() => setActiveTab("groups")}
+            onClick={() => {
+              setActiveTab("groups");
+              onSelectChat?.(null);
+              navigate("/g");
+            }}
             className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-emerald-400 rounded-lg hover:bg-emerald-500/10 transition"
           >
             <Users size={20} />
@@ -2062,7 +2369,6 @@ const Side = ({ onSelectChat }) => {
       </div>
 
       {/* Main list */}
-
       <div className="w-full bg-[#090d12]">
         {/* Header */}
         <div className="h-14 px-4 border-b border-zinc-800/70 flex items-center justify-between">
@@ -2092,7 +2398,10 @@ const Side = ({ onSelectChat }) => {
                   ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10"
                   : "text-zinc-400 border-zinc-700/60 hover:bg-zinc-800/50"
               }`}
-              onClick={() => setActiveTab("chats")}
+              onClick={() => {
+                setActiveTab("chats");
+                navigate("/");
+              }}
             >
               Chats
             </button>
@@ -2102,7 +2411,11 @@ const Side = ({ onSelectChat }) => {
                   ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10"
                   : "text-zinc-400 border-zinc-700/60 hover:bg-zinc-800/50"
               }`}
-              onClick={() => setActiveTab("groups")}
+              onClick={() => {
+                setActiveTab("groups");
+                onSelectChat?.(null); 
+                navigate("/g");
+              }}
             >
               Groups
             </button>

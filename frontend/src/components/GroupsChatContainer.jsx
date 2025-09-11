@@ -27,8 +27,7 @@
 // import http from "../utils/http";
 // import toast, { Toaster } from "react-hot-toast";
 // import uploadFile from "../utils/uploadFile";
-// // import { setActiveThread, clearActiveThread } from "../utils/activeThread";
-
+// import { useNavigate, useParams } from "react-router-dom";
 
 // /* =========================== Small UI helpers =========================== */
 // const Modal = ({ open, onClose, title, children, footer, wide = false, zIndex = 70 }) => {
@@ -81,7 +80,6 @@
 //     setResults([]);
 //     setSelected([]);
 //   }, [open]);
-
 
 //   const searchUsers = async (q) => {
 //     try {
@@ -429,7 +427,17 @@
 // };
 
 // /* =========================== Main Component =========================== */
-// export default function GroupsChatContainer() {
+// /**
+//  * Props:
+//  * - embedded?: boolean (default false) — when true, hides the left groups list (for use inside other layouts).
+//  * - initialGroupId?: string — optional group id to open on mount (overridden by route param if present).
+//  */
+// export default function GroupsChatContainer({ embedded = true, initialGroupId }) {
+//   const navigate = useNavigate();
+//   const params = useParams(); // expects route like /g/:groupId
+//   const routeGroupId = params?.groupId || params?.gid || null;
+//   const effectiveGroupId = routeGroupId || initialGroupId || null;
+
 //   const socket = GetSocket();
 //   const [userLS] = useLocalStorage({ key: "user" });
 
@@ -443,10 +451,9 @@
 //       return null;
 //     }
 //   }, [userLS]);
-  
 
 //   /* responsive drawers */
-//   const [showLeft, setShowLeft] = useState(false);
+//   const [showLeft, setShowLeft] = useState(!embedded);
 //   const [showMembersMobile, setShowMembersMobile] = useState(false);
 
 //   /* groups */
@@ -464,7 +471,7 @@
 //   const listRef = useRef(null);
 
 //   /* seen tracking (client-side, from socket events) */
-//   const [seenByMap, setSeenByMap] = useState({}); // { [msgId]: string[] }
+//   const [seenByMap, setSeenByMap] = useState({});
 //   const seenThrottleRef = useRef(0);
 
 //   /* create group UI */
@@ -498,7 +505,6 @@
 //   const [pastMembers, setPastMembers] = useState([]);
 //   const [settingsDraft, setSettingsDraft] = useState({ name: "", profilePic: "" });
 
-
 //   useEffect(() => {
 //     if (!Array.isArray(messages)) setMessages(Array.isArray(messages) ? messages : []);
 //   }, [messages]);
@@ -520,13 +526,30 @@
 //   };
 //   useEffect(() => { loadMyGroups(); }, []);
 
+//   /* open group if route/prop says so */
+//   useEffect(() => {
+//     if (effectiveGroupId) {
+//       openGroup(effectiveGroupId);
+//     }
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, [effectiveGroupId]);
+//   useEffect(() => {
+//   // no group in the route -> show placeholder
+//   if (!routeGroupId && !initialGroupId) {
+//     setActive(null);
+//     setMessages([]);
+//     setSeenByMap({});
+//     if (!embedded) setShowLeft(true); // keep the list visible on wide screens
+//   }
+//   // NOTE: don't call openGroup here; we only open when an id exists
+// }, [routeGroupId, initialGroupId, embedded]);
+
 //   /* search filter */
 //   useEffect(() => {
 //     const q = (searchQ || "").trim().toLowerCase();
 //     if (!q) setGroups(allGroups);
 //     else setGroups(allGroups.filter((g) => (g?.name || "").toLowerCase().includes(q)));
 //   }, [searchQ, allGroups]);
-  
 
 //   /* ===== Past members fetch ===== */
 //   const fetchPastMembers = useCallback(
@@ -654,7 +677,7 @@
 //     try {
 //       setActive(null);
 //       setMessages([]);
-//       setSeenByMap({}); // reset seen map for new group
+//       setSeenByMap({});
 //       const { data } = await http.get(`/api/groups/${groupId}`);
 //       const group = data?.group;
 //       const initialMessages = data?.messages || data?.groupMessages || [];
@@ -662,11 +685,10 @@
 //       setMessages(Array.isArray(initialMessages) ? dedupeMessages(initialMessages.map(normalizeMessage)) : []);
 //       if (socket && group) {
 //         socket.emit("msgPageGroup", group._id);
-//         // immediately mark as seen on open
 //         setTimeout(() => emitSeenGroup(), 80);
 //       }
 //       setUnread((u) => ({ ...u, [groupId]: 0 }));
-//       setShowLeft(false);
+//       if (!embedded) setShowLeft(false);
 //     } catch (err) {
 //       console.error("Failed to open group", err);
 //       toast.error(err?.response?.data?.message || "Failed to load group");
@@ -754,7 +776,6 @@
 //     const onSeenUpdate = ({ groupId, seenBy, messageIds }) => {
 //       if (!active || groupId !== active._id) return;
 
-//       // set message.seen=true and record who saw it
 //       setMessages((prev) =>
 //         (prev || []).map((m) => (messageIds.includes(m._id) ? { ...m, seen: true } : m))
 //       );
@@ -787,7 +808,6 @@
 //   /* auto scroll + mark seen when at bottom */
 //   useEffect(() => {
 //     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-//     // when new messages arrive and we're already near bottom, emit seen
 //     const el = listRef.current;
 //     if (!el) return;
 //     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 48;
@@ -978,6 +998,7 @@
 //       setGroups((prev) => [created, ...prev]);
 //       resetCreate();
 //       openGroup(created._id);
+//       if (!embedded) navigate(`/g/${created._id}`);
 //     } catch (e) {
 //       console.error("Create group error:", e);
 //       toast.error(e?.response?.data?.message || e?.message || "Create failed");
@@ -1030,6 +1051,7 @@
 //       setGroups((prev) => prev.filter((g) => g._id !== active._id));
 //       setActive(null);
 //       setMessages([]);
+//       if (!embedded) navigate("/"); // bounce somewhere sane
 //     } catch (e) {
 //       console.error(e);
 //       toast.error(e?.response?.data?.message || "Leave failed");
@@ -1045,6 +1067,7 @@
 //       setGroups((prev) => prev.filter((g) => g._id !== active._id));
 //       setActive(null);
 //       setMessages([]);
+//       if (!embedded) navigate("/");
 //     } catch (e) {
 //       console.error(e);
 //       toast.error(e?.response?.data?.message || "Delete failed");
@@ -1138,9 +1161,16 @@
 //   const ChatHeader = () => (
 //     <div className="h-14 px-2 sm:px-4 border-b border-zinc-800 flex items-center justify-between">
 //       <div className="flex items-center gap-3 min-w-0">
-//         <button className="lg:hidden p-2 rounded-lg hover:bg-zinc-800" onClick={() => setShowLeft(true)} title="Groups">
-//           <ChevronLeft />
-//         </button>
+//         {!embedded && (
+//           <button className="lg:hidden p-2 rounded-lg hover:bg-zinc-800" onClick={() => setShowLeft(true)} title="Groups">
+//             <ChevronLeft />
+//           </button>
+//         )}
+//         {embedded && (
+//           <button className="p-2 rounded-lg hover:bg-zinc-800" onClick={() => navigate(-1)} title="Back">
+//             <ChevronLeft />
+//           </button>
+//         )}
 //         <img src={active.profilePic || "/group-placeholder.png"} alt="" className="w-9 h-9 rounded-full object-cover" />
 //         <div className="min-w-0">
 //           <div className="flex items-center gap-2 min-w-0">
@@ -1182,78 +1212,80 @@
 //       <Toaster position="top-right" />
 
 //       {/* LEFT: groups list (drawer on mobile) */}
-//       <aside
-//         className={`fixed lg:static inset-y-0 left-0 w-[85%] sm:w-80 lg:w-80 z-40 bg-[#0b0d11] border-r border-zinc-800 flex-shrink-0 flex flex-col transform transition-transform ${
-//           showLeft ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-//         }`}
-//       >
-//         <div className="h-14 px-4 border-b border-zinc-800 flex items-center justify-between">
-//           <div className="flex items-center gap-2">
-//             <Users size={18} className="text-zinc-400" />
-//             <h2 className="font-semibold">Groups</h2>
-//           </div>
-//           <div className="flex items-center gap-2">
-//             <button
-//               onClick={() => setCreateOpen(true)}
-//               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm"
-//             >
-//               <Plus size={16} /> New
-//             </button>
-//             <button className="lg:hidden p-2 rounded-lg hover:bg-zinc-800" onClick={() => setShowLeft(false)}>✕</button>
-//           </div>
-//         </div>
-
-//         <div className="p-3 border-b border-zinc-800">
-//           <div className="flex items-center gap-2 bg-[#0f1216] border border-zinc-700 rounded-xl px-3 py-2">
-//             <Search size={16} className="text-zinc-500" />
-//             <input
-//               placeholder="Search groups..."
-//               value={searchQ}
-//               onChange={(e) => setSearchQ(e.target.value)}
-//               className="bg-transparent outline-none text-zinc-300 w-full"
-//             />
-//           </div>
-//         </div>
-
-//         <div className="overflow-y-auto h-[calc(100vh-112px)]">
-//           {loadingGroups && <p className="p-3 text-zinc-400">Loading…</p>}
-//           {!loadingGroups && !groups.length && <p className="p-3 text-zinc-500">No groups yet</p>}
-//           {groups.map((g) => {
-//             const isActive = active?._id === g._id;
-//             const count = unread[g._id] || 0;
-//             return (
+//       {!embedded && (
+//         <aside
+//           className={`fixed lg:static inset-y-0 left-0 w-[85%] sm:w-80 lg:w-80 z-40 bg-[#0b0d11] border-r border-zinc-800 flex-shrink-0 flex flex-col transform transition-transform ${
+//             showLeft ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+//           }`}
+//         >
+//           <div className="h-14 px-4 border-b border-zinc-800 flex items-center justify-between">
+//             <div className="flex items-center gap-2">
+//               <Users size={18} className="text-zinc-400" />
+//               <h2 className="font-semibold">Groups</h2>
+//             </div>
+//             <div className="flex items-center gap-2">
 //               <button
-//                 key={g._id}
-//                 onClick={() => openGroup(g._id)}
-//                 className={`w-full text-left px-4 py-3 border-b border-zinc-900 hover:bg-zinc-900/60 transition ${isActive ? "bg-zinc-900/70" : ""}`}
+//                 onClick={() => setCreateOpen(true)}
+//                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm"
 //               >
-//                 <div className="flex items-center gap-3">
-//                   <img src={g.profilePic || "/group-placeholder.png"} alt="" className="w-10 h-10 rounded-full object-cover" />
-//                   <div className="flex-1 min-w-0">
-//                     <div className="flex items-center gap-2">
-//                       <div className="font-medium truncate">{g.name}</div>
-//                       {isAdminOfGroup(g, myId) && <Crown size={14} className="text-yellow-500" title="You are admin" />}
-//                     </div>
-//                     <div className="text-xs text-zinc-500 flex items-center gap-2">
-//                       <span className="truncate">{g.lastMessage?.text || "No messages yet"}</span>
-//                     </div>
-//                   </div>
-//                   <div className="text-right">
-//                     <div className="text-[10px] text-zinc-500">
-//                       {g.lastMessage?.time ? fmtTime(g.lastMessage.time) : ""}
-//                     </div>
-//                     {count > 0 && (
-//                       <div className="mt-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-green-600 text-[10px]">
-//                         {count}
-//                       </div>
-//                     )}
-//                   </div>
-//                 </div>
+//                 <Plus size={16} /> New
 //               </button>
-//             );
-//           })}
-//         </div>
-//       </aside>
+//               <button className="lg:hidden p-2 rounded-lg hover:bg-zinc-800" onClick={() => setShowLeft(false)}>✕</button>
+//             </div>
+//           </div>
+
+//           <div className="p-3 border-b border-zinc-800">
+//             <div className="flex items-center gap-2 bg-[#0f1216] border border-zinc-700 rounded-xl px-3 py-2">
+//               <Search size={16} className="text-zinc-500" />
+//               <input
+//                 placeholder="Search groups..."
+//                 value={searchQ}
+//                 onChange={(e) => setSearchQ(e.target.value)}
+//                 className="bg-transparent outline-none text-zinc-300 w-full"
+//               />
+//             </div>
+//           </div>
+
+//           <div className="overflow-y-auto h-[calc(100vh-112px)]">
+//             {loadingGroups && <p className="p-3 text-zinc-400">Loading…</p>}
+//             {!loadingGroups && !groups.length && <p className="p-3 text-zinc-500">No groups yet</p>}
+//             {groups.map((g) => {
+//               const isActive = active?._id === g._id;
+//               const count = unread[g._id] || 0;
+//               return (
+//                 <button
+//                   key={g._id}
+//                 onClick={() => navigate(`/g/${g._id}`)}
+//                   className={`w-full text-left px-4 py-3 border-b border-zinc-900 hover:bg-zinc-900/60 transition ${isActive ? "bg-zinc-900/70" : ""}`}
+//                 >
+//                   <div className="flex items-center gap-3">
+//                     <img src={g.profilePic || "/group-placeholder.png"} alt="" className="w-10 h-10 rounded-full object-cover" />
+//                     <div className="flex-1 min-w-0">
+//                       <div className="flex items-center gap-2">
+//                         <div className="font-medium truncate">{g.name}</div>
+//                         {isAdminOfGroup(g, myId) && <Crown size={14} className="text-yellow-500" title="You are admin" />}
+//                       </div>
+//                       <div className="text-xs text-zinc-500 flex items-center gap-2">
+//                         <span className="truncate">{g.lastMessage?.text || "No messages yet"}</span>
+//                       </div>
+//                     </div>
+//                     <div className="text-right">
+//                       <div className="text-[10px] text-zinc-500">
+//                         {g.lastMessage?.time ? fmtTime(g.lastMessage.time) : ""}
+//                       </div>
+//                       {count > 0 && (
+//                         <div className="mt-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-green-600 text-[10px]">
+//                           {count}
+//                         </div>
+//                       )}
+//                     </div>
+//                   </div>
+//                 </button>
+//               );
+//             })}
+//           </div>
+//         </aside>
+//       )}
 
 //       {/* RIGHT: group details + chat */}
 //       <main className="flex-1 min-w-0 flex flex-col">
@@ -1315,7 +1347,6 @@
 
 //                             <div className={`text-[10px] mt-1 ${isMe ? "text-white/75" : "text-zinc-300/70"} text-right`}>
 //                               {time}
-//                               {/* ✔ / ✔✔ */}
 //                               <SeenTicks m={m} isMe={isMe} />
 //                               {m.__temp ? " " : ""}
 //                             </div>
@@ -1732,7 +1763,7 @@ import {
   ChevronLeft,
   Info,
   Check,
-  CheckCheck,
+  CheckCheck, MoreVertical, Pencil, Trash2 as Trash
 } from "lucide-react";
 import { GetSocket } from "../utils/Sockets";
 import http from "../utils/http";
@@ -1784,6 +1815,7 @@ const MemberPicker = ({ open, onClose, onSubmit, excludeIds = [] }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [selected, setSelected] = useState([]);
+          // text being edited
 
   useEffect(() => {
     if (!open) return;
@@ -1931,6 +1963,12 @@ const EMOJIS = [
   "❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💖","💗","💓","💞","💕","💘","💔","💬","💭","💤","✅","☑️","❌","❗","❓","⚠️","♻️","🔝","🔜","🔙","🔎","🔍","#","*","™️","©️","®️",
 ];
 
+/* translation helpers */
+const safeText = (v) => (typeof v === "string" ? v : "");
+const EMOJI_RE =
+  /^(?:\p{Emoji_Presentation}|\p{Extended_Pictographic}|\p{Emoji}|\s)+$/u;
+const isEmojiOnly = (s = "") => !!s && EMOJI_RE.test(s);
+
 /* helpers for admin checks */
 const getId = (x) => (typeof x === "string" ? x : x?._id || x?.id || x);
 const isAdminOfGroup = (group, user) => {
@@ -1939,7 +1977,7 @@ const isAdminOfGroup = (group, user) => {
   return arr.some((a) => getId(a) === uid);
 };
 
-/* ---- Message normalizer -------------------------------------------------- */
+/* ---- Message normalizer (includes translation fields) ------------------ */
 const normalizeMessage = (rawIn) => {
   if (!rawIn) return null;
   const m = rawIn.message ? rawIn.message : rawIn;
@@ -2004,6 +2042,12 @@ const normalizeMessage = (rawIn) => {
 
   const clientNonce = m.clientNonce || rawIn.clientNonce || null;
 
+  // translation fields (normalize names)
+  const translatedText =
+  m.translatedText ?? m.translatedMessage ?? m.translatedVoiceText ?? null;
+  const translatedVoiceText = m.translatedVoiceText ?? null;
+  const originalVoiceText = m.originalVoiceText ?? m.voiceTranscription ?? null;
+
   return {
     ...m,
     _id: m._id || rawIn._id || undefined,
@@ -2016,8 +2060,12 @@ const normalizeMessage = (rawIn) => {
     url,
     fileName,
     size,
+    fileSize: size ?? m.fileSize ?? null,
     messageType,
     clientNonce,
+    translatedText,
+    translatedVoiceText,
+    originalVoiceText,
   };
 };
 
@@ -2138,11 +2186,6 @@ const ImageBubble = ({ url, fileName }) => {
 };
 
 /* =========================== Main Component =========================== */
-/**
- * Props:
- * - embedded?: boolean (default false) — when true, hides the left groups list (for use inside other layouts).
- * - initialGroupId?: string — optional group id to open on mount (overridden by route param if present).
- */
 export default function GroupsChatContainer({ embedded = true, initialGroupId }) {
   const navigate = useNavigate();
   const params = useParams(); // expects route like /g/:groupId
@@ -2172,6 +2215,9 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
   const [groups, setGroups] = useState([]);
   const [searchQ, setSearchQ] = useState("");
   const [loadingGroups, setLoadingGroups] = useState(false);
+  const [openMenuFor, setOpenMenuFor] = useState(null);     // messageId or null
+const [editingId, setEditingId] = useState(null);          // messageId currently editing
+const [editDraft, setEditDraft] = useState("");  
 
   /* active + messages */
   const [active, setActive] = useState(null);
@@ -2216,6 +2262,11 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
   const [pastMembers, setPastMembers] = useState([]);
   const [settingsDraft, setSettingsDraft] = useState({ name: "", profilePic: "" });
 
+  /* translation UI state (group) */
+  const [showOriginalMap, setShowOriginalMap] = useState({});
+  const [showVoiceOriginalMap, setShowVoiceOriginalMap] = useState({});
+  const [translatingMessageId, setTranslatingMessageId] = useState(null);
+
   useEffect(() => {
     if (!Array.isArray(messages)) setMessages(Array.isArray(messages) ? messages : []);
   }, [messages]);
@@ -2244,6 +2295,16 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveGroupId]);
+
+  useEffect(() => {
+    // no group in the route -> show placeholder
+    if (!routeGroupId && !initialGroupId) {
+      setActive(null);
+      setMessages([]);
+      setSeenByMap({});
+      if (!embedded) setShowLeft(true); // keep the list visible on wide screens
+    }
+  }, [routeGroupId, initialGroupId, embedded]);
 
   /* search filter */
   useEffect(() => {
@@ -2293,7 +2354,7 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
     socket.emit("seenGroup", { groupId: active._id, userId: myId });
   }, [socket, active?._id, myId]);
 
-  /* replace optimistic with saved */
+  /* replace optimistic with saved (preserve translation & file meta) */
   const replaceOptimisticWithSaved = useCallback((savedRaw) => {
     const savedMsg = normalizeMessage(savedRaw);
     if (!savedMsg) return;
@@ -2311,14 +2372,33 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
 
     const mergePreserving = (oldM, newM) => {
       const merged = { ...oldM, ...newM };
+      // URLs / files
       merged.url = newM.url ?? oldM.url ?? null;
-      merged.fileName = newM.fileName ?? oldM.fileName ?? oldM.filename ?? oldM.name ?? null;
-      const newSize = (typeof newM.size === "number") ? newM.size :
-                      (typeof newM.fileSize === "number") ? newM.fileSize : null;
-      const oldSize = (typeof oldM.size === "number") ? oldM.size :
-                      (typeof oldM.fileSize === "number") ? oldM.fileSize : null;
+      merged.fileName =
+        newM.fileName ?? oldM.fileName ?? oldM.filename ?? oldM.name ?? null;
+      const newSize =
+        typeof newM.size === "number"
+          ? newM.size
+          : typeof newM.fileSize === "number"
+          ? newM.fileSize
+          : null;
+      const oldSize =
+        typeof oldM.size === "number"
+          ? oldM.size
+          : typeof oldM.fileSize === "number"
+          ? oldM.fileSize
+          : null;
       merged.size = newSize ?? oldSize ?? null;
       merged.fileSize = merged.size;
+
+      // translations
+      merged.translatedText =
+        newM.translatedText ?? newM.translatedMessage ?? oldM.translatedText ?? oldM.translatedMessage ?? null;
+      merged.translatedVoiceText =
+        newM.translatedVoiceText ?? oldM.translatedVoiceText ?? null;
+      merged.originalVoiceText =
+        newM.originalVoiceText ?? newM.voiceTranscription ?? oldM.originalVoiceText ?? oldM.voiceTranscription ?? null;
+
       return merged;
     };
 
@@ -2383,7 +2463,11 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
       const group = data?.group;
       const initialMessages = data?.messages || data?.groupMessages || [];
       setActive(group || null);
-      setMessages(Array.isArray(initialMessages) ? dedupeMessages(initialMessages.map(normalizeMessage)) : []);
+      setMessages(
+        Array.isArray(initialMessages)
+          ? dedupeMessages(initialMessages.map(normalizeMessage))
+          : []
+      );
       if (socket && group) {
         socket.emit("msgPageGroup", group._id);
         setTimeout(() => emitSeenGroup(), 80);
@@ -2396,9 +2480,19 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
     }
   };
 
-  /* sockets */
+  /* sockets: group info/messages/seen + new translations */
   useEffect(() => {
     if (!socket) return;
+     const onGroupMessagePatched = (payload) => {
+   const patched = normalizeMessage(payload?.message || payload);
+   if (!patched?._id) return;
+   setMessages((prev) =>
+     (Array.isArray(prev) ? prev : []).map((m) =>
+       String(m._id) === String(patched._id) ? { ...m, ...patched } : m
+     )
+  );
+ };
+
 
     const onGroupInfo = (group) => {
       if (!group?._id) return;
@@ -2491,18 +2585,36 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
       });
     };
 
+    const onGroupTranslationOk = (data) => {
+      // { groupId, messageId, translatedText }
+      setMessages((prev) =>
+        (Array.isArray(prev) ? prev : []).map((m) =>
+          String(m._id) === String(data.messageId)
+            ? { ...m, translatedText: data.translatedText }
+            : m
+        )
+      );
+      setTranslatingMessageId(null);
+    };
+    const onGroupTranslationErr = () => setTranslatingMessageId(null);
+
     socket.on("groupInfo", onGroupInfo);
     socket.on("groupMessages", onGroupMessages);
     socket.on("receive-group-msg", onNewGroupMsg);
     socket.on("group:new", onNewGroupMsg);
     socket.on("seenGroupUpdate", onSeenUpdate);
-
+    socket.on("groupTranslationResult", onGroupTranslationOk);
+    socket.on("groupTranslationError", onGroupTranslationErr);
+socket.on("groupMessagePatched", onGroupMessagePatched);
     return () => {
       socket.off("groupInfo", onGroupInfo);
       socket.off("groupMessages", onGroupMessages);
       socket.off("receive-group-msg", onNewGroupMsg);
       socket.off("group:new", onNewGroupMsg);
       socket.off("seenGroupUpdate", onSeenUpdate);
+      socket.off("groupTranslationResult", onGroupTranslationOk);
+      socket.off("groupTranslationError", onGroupTranslationErr);
+      socket.off("groupMessagePatched", onGroupMessagePatched);
     };
   }, [socket, active, replaceOptimisticWithSaved, settingsOpen, fetchPastMembers]);
 
@@ -2514,6 +2626,11 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 48;
     if (nearBottom) emitSeenGroup();
   }, [messages, emitSeenGroup]);
+useEffect(() => {
+  const close = () => setOpenMenuFor(null);
+  document.addEventListener("click", close);
+  return () => document.removeEventListener("click", close);
+}, []);
 
   useEffect(() => {
     const el = listRef.current;
@@ -2532,6 +2649,30 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [emitSeenGroup]);
+
+  /* seed translation toggle maps when messages change */
+  useEffect(() => {
+    const t = { ...showOriginalMap };
+    const v = { ...showVoiceOriginalMap };
+    for (const m of Array.isArray(messages) ? messages : []) {
+      if (!m?._id) continue;
+      if (!(m._id in t)) t[m._id] = false;
+      if (!(m._id in v)) v[m._id] = false;
+    }
+    setShowOriginalMap(t);
+    setShowVoiceOriginalMap(v);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
+  /* request a translation for a specific group message */
+  const requestGroupTranslation = useCallback(
+    (messageId) => {
+      if (!socket || !active?._id || !messageId) return;
+      setTranslatingMessageId(messageId);
+      socket.emit("translateGroupMessage", { groupId: active._id, messageId });
+    },
+    [socket, active?._id]
+  );
 
   /* send text */
   const sendGroupMessage = async () => {
@@ -2721,6 +2862,37 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
       toast.error(e?.response?.data?.message || "Remove failed");
     }
   };
+const startEdit = (m) => {
+  setEditingId(m._id);
+  setEditDraft(getTextFromMessage(m) || "");
+  setOpenMenuFor(null);
+};
+
+const saveEdit = () => {
+  if (!editingId || !active) return;
+  const next = (editDraft || "").trim();
+  if (!next) return toast.error("Message can’t be empty");
+
+  // optimistic
+  setMessages((prev) =>
+    (prev || []).map((x) => (x._id === editingId ? { ...x, text: next, isEdited: true } : x))
+  );
+
+  // tell server (you already planned these sockets)
+  socket?.emit("editGroupMsg", { groupId: active._id, messageId: editingId, text: next });
+  setEditingId(null);
+  setEditDraft("");
+};
+
+const cancelEdit = () => { setEditingId(null); setEditDraft(""); };
+
+const deleteForMe = (m) => {
+  // optimistic: hide it locally
+  setMessages((prev) => (prev || []).filter((x) => x._id !== m._id));
+  // notify server
+  socket?.emit("deleteGroupMsg", { groupId: active._id, messageId: m._id });
+  setOpenMenuFor(null);
+};
 
   const makeAdmin = async (userId) => {
     if (!active) return;
@@ -2956,10 +3128,7 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
               return (
                 <button
                   key={g._id}
-                  onClick={() => {
-                    openGroup(g._id);
-                    navigate(`/g/${g._id}`);
-                  }}
+                  onClick={() => navigate(`/g/${g._id}`)}
                   className={`w-full text-left px-4 py-3 border-b border-zinc-900 hover:bg-zinc-900/60 transition ${isActive ? "bg-zinc-900/70" : ""}`}
                 >
                   <div className="flex items-center gap-3">
@@ -3015,6 +3184,10 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
 
                   {Array.isArray(messages) &&
                     messages.map((m, i) => {
+                      // skip messages the current user deleted-for-me
+   if (Array.isArray(m.deletedFor) && m.deletedFor.some(x => String(x) === String(myId))) {
+     return null;
+  }
                       const senderId =
                         (typeof m.msgByUser === "object" ? m.msgByUser?._id : m.msgByUser) ||
                         (typeof m.sender === "object" ? m.sender?._id : m.sender);
@@ -3026,35 +3199,168 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
                         ? "bg-emerald-700 text-white"
                         : "bg-[#1f2c34] text-zinc-100";
 
+                      const rawText = getTextFromMessage(m);
+
                       return (
                         <div key={m._id || `i-${i}`} className={`mb-2 sm:mb-3 ${wrap}`}>
-                          <div className={`inline-block px-3 py-2 rounded-2xl max-w-[85%] sm:max-w-[75%] break-words ${bubble}`}>
-                            {(!m.messageType || m.messageType === "text") && (
-                              <div className="whitespace-pre-wrap">{getTextFromMessage(m)}</div>
-                            )}
+                         <div className={`group relative inline-block px-3 py-2 rounded-2xl max-w-[85%] sm:max-w-[75%] break-words ${bubble}`}>
 
-                            {m.messageType === "image" && m.url && (
-                              <ImageBubble url={m.url} fileName={m.fileName} />
-                            )}
+    {/* kebab (hover) */}
+    <button
+      onClick={(e) => { e.stopPropagation(); setOpenMenuFor(openMenuFor === m._id ? null : m._id); }}
+      className={`absolute -top-2 ${isMe ? "-right-2" : "-left-2"} p-1 rounded-full
+                  bg-black/30 hover:bg-black/40 opacity-0 group-hover:opacity-100 transition`}
+      title="More"
+    >
+      <MoreVertical size={16} />
+    </button>
 
-                            {m.messageType === "file" && m.url && (
-                              <FileBubble
-                                url={m.url}
-                                fileName={m.fileName || m.filename || m.name}
-                                size={typeof m.size === "number" ? m.size : m.fileSize}
-                              />
-                            )}
+    {/* dropdown */}
+    {openMenuFor === m._id && (
+      <div
+        className={`absolute z-20 min-w-[160px] border border-zinc-700 rounded-lg overflow-hidden shadow
+                    ${isMe ? "right-6 top-0" : "left-6 top-0"} bg-[#0e1013]`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Edit only for my text messages */}
+        {isMe && (m.messageType === "text" || !m.messageType) && (
+          <button
+            className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 flex items-center gap-2"
+            onClick={() => startEdit(m)}
+          >
+            <Pencil size={14} /> Edit
+          </button>
+        )}
 
-                            {(m.messageType === "audio" || m.messageType === "voice") && m.url && (
-                              <VoiceBubble src={m.url} />
-                            )}
+        {/* Delete for me */}
+        <button
+          className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 flex items-center gap-2"
+          onClick={() => deleteForMe(m)}
+        >
+          <Trash size={14} /> Delete
+        </button>
+      </div>
+    )}
 
-                            <div className={`text-[10px] mt-1 ${isMe ? "text-white/75" : "text-zinc-300/70"} text-right`}>
-                              {time}
-                              <SeenTicks m={m} isMe={isMe} />
-                              {m.__temp ? " " : ""}
-                            </div>
-                          </div>
+    {/* EDITING UI (my text) */}
+    {editingId === m._id && (m.messageType === "text" || !m.messageType) ? (
+      <div className="flex items-center gap-2">
+        <input
+          value={editDraft}
+          onChange={(e) => setEditDraft(e.target.value)}
+          className="flex-1 px-2 py-1 rounded bg-black/20 border border-white/10 outline-none"
+          autoFocus
+        />
+        <button onClick={saveEdit} className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-xs">
+          Save
+        </button>
+        <button onClick={cancelEdit} className="px-2 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-xs">
+          Cancel
+        </button>
+      </div>
+    ) : (
+      <>
+        {/* TEXT with translation toggle preserved */}
+        {(!m.messageType || m.messageType === "text") && (
+          <div className="whitespace-pre-wrap">
+            {(() => {
+              const rawText = getTextFromMessage(m);
+              const hasTrans = !!m.translatedText;
+              const canAsk = !isMe && !isEmojiOnly(rawText);
+
+              return (
+                <>
+                  {hasTrans && canAsk
+                    ? (showOriginalMap[m._id] ? safeText(rawText) : safeText(m.translatedText))
+                    : safeText(rawText)}
+                  {canAsk && (
+                    <div className="text-[11px] mt-1 opacity-80">
+                      {hasTrans ? (
+                        <button
+                          onClick={() =>
+                            setShowOriginalMap((map) => ({ ...map, [m._id]: !map[m._id] }))
+                          }
+                          className="underline"
+                        >
+                          {showOriginalMap[m._id] ? "Show translation" : "Show original"}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => requestGroupTranslation(m._id)}
+                          className="underline"
+                          disabled={translatingMessageId === m._id}
+                        >
+                          {translatingMessageId === m._id ? "Translating…" : "Translate"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {m.isEdited && <span className="ml-1 text-[10px] opacity-70">(edited)</span>}
+                </>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* IMAGE / FILE */}
+        {m.messageType === "image" && m.url && <ImageBubble url={m.url} fileName={m.fileName} />}
+        {m.messageType === "file" && m.url && (
+          <FileBubble
+            url={m.url}
+            fileName={m.fileName || m.filename || m.name}
+            size={typeof m.size === "number" ? m.size : m.fileSize}
+          />
+        )}
+
+        {/* VOICE with translation toggle preserved */}
+        {(m.messageType === "audio" || m.messageType === "voice") && m.url && (
+          <div className="space-y-1">
+            <VoiceBubble src={m.url} />
+            {!isMe && (
+              (() => {
+                const hasTrans = !!m.translatedText;
+                if (hasTrans) {
+                  return (
+                    <>
+                      <p className="text-xs text-zinc-300/90">
+                        {showVoiceOriginalMap[m._id]
+                          ? (m.originalVoiceText || m.text || "No original transcription available")
+                          : m.translatedText}
+                      </p>
+                      <button
+                        onClick={() =>
+                          setShowVoiceOriginalMap((map) => ({ ...map, [m._id]: !map[m._id] }))
+                        }
+                        className="text-[11px] underline"
+                      >
+                        {showVoiceOriginalMap[m._id] ? "Show translation" : "Show original"}
+                      </button>
+                    </>
+                  );
+                }
+                return (
+                  <button
+                    onClick={() => requestGroupTranslation(m._id)}
+                    className="text-xs underline"
+                    disabled={translatingMessageId === m._id}
+                  >
+                    {translatingMessageId === m._id ? "Translating…" : "Translate voice"}
+                  </button>
+                );
+              })()
+            )}
+          </div>
+        )}
+      </>
+    )}
+
+    {/* time + seen */}
+    <div className={`text-[10px] mt-1 ${isMe ? "text-white/75" : "text-zinc-300/70"} text-right`}>
+      {time}
+      <SeenTicks m={m} isMe={isMe} />
+    </div>
+  </div>
+
                         </div>
                       );
                     })}
@@ -3236,7 +3542,11 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
           if (!active) return;
           try {
             const ids = picked.map((p) => p._id);
-            await Promise.all(ids.map((userId) => http.put("/api/groups/add-member", { groupId: active._id, userId })));
+            await Promise.all(
+              ids.map((userId) =>
+                http.put("/api/groups/add-member", { groupId: active._id, userId })
+              )
+            );
             toast.success("Members added");
             openGroup(active._id);
           } catch (e) {
@@ -3244,7 +3554,10 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
             toast.error(e?.response?.data?.message || "Add failed");
           }
         }}
-        excludeIds={[...gMembers.map((m) => m._id), ...(active?.members?.map((m) => getId(m)) || [])]}
+        excludeIds={[
+          ...gMembers.map((m) => m._id),
+          ...(active?.members?.map((m) => getId(m)) || []),
+        ]}
       />
 
       {/* Settings modal */}
@@ -3257,19 +3570,22 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
           <div className="flex justify-end w-full gap-2">
             {amAdmin && (
               <>
-                <button onClick={() => setPickerOpen(true)} className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white">
+                <button
+                  onClick={() => setPickerOpen(true)}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white"
+                >
                   Add Members
                 </button>
                 <button
                   onClick={async () => {
                     const nextName = (settingsDraft.name ?? "").trim();
-                    const curName  = (active?.name ?? "").trim();
-                    const nextPic  = settingsDraft.profilePic ?? "";
-                    const curPic   = active?.profilePic ?? "";
+                    const curName = (active?.name ?? "").trim();
+                    const nextPic = settingsDraft.profilePic ?? "";
+                    const curPic = active?.profilePic ?? "";
 
                     const changed = {};
                     if (nextName && nextName !== curName) changed.name = nextName;
-                    if (nextPic && nextPic !== curPic)     changed.profilePic = nextPic;
+                    if (nextPic && nextPic !== curPic) changed.profilePic = nextPic;
 
                     if (Object.keys(changed).length === 0) {
                       toast("No changes");
@@ -3290,17 +3606,25 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
           <div className="space-y-6">
             {/* Basics */}
             <section>
-              <h4 className="text-sm font-semibold text-zinc-300 mb-2">Basic Info</h4>
+              <h4 className="text-sm font-semibold text-zinc-300 mb-2">
+                Basic Info
+              </h4>
               <div className="flex items-center gap-4">
                 <img
-                  src={settingsDraft.profilePic || active?.profilePic || "/group-placeholder.png"}
+                  src={
+                    settingsDraft.profilePic ||
+                    active?.profilePic ||
+                    "/group-placeholder.png"
+                  }
                   alt="group"
                   className="w-16 h-16 rounded-full object-cover border border-zinc-700"
                 />
                 <div className="space-y-2 flex-1">
                   <input
                     value={settingsDraft.name}
-                    onChange={(e) => setSettingsDraft((s) => ({ ...s, name: e.target.value }))}
+                    onChange={(e) =>
+                      setSettingsDraft((s) => ({ ...s, name: e.target.value }))
+                    }
                     className="w-full bg-[#0e1013] border border-zinc-700 rounded-xl px-3 py-2 text-zinc-200 outline-none focus:border-zinc-500"
                     placeholder="Group name"
                     disabled={!amAdmin}
@@ -3334,16 +3658,25 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
 
             {/* Members */}
             <section>
-              <h4 className="text-sm font-semibold text-zinc-300 mb-2">Members</h4>
+              <h4 className="text-sm font-semibold text-zinc-300 mb-2">
+                Members
+              </h4>
               <div className="grid sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto">
                 {active?.members?.map((m) => {
                   const isAdminMember = isAdminOfGroup(active, m);
                   const id = getId(m);
                   return (
-                    <div key={id} className="flex items-center justify-between bg-[#0e1013] p-2 rounded border border-zinc-700">
+                    <div
+                      key={id}
+                      className="flex items-center justify-between bg-[#0e1013] p-2 rounded border border-zinc-700"
+                    >
                       <div className="min-w-0">
-                        <div className="font-medium truncate">{m.name || m.email}</div>
-                        <div className="text-xs text-zinc-500 truncate">{m.email}</div>
+                        <div className="font-medium truncate">
+                          {m.name || m.email}
+                        </div>
+                        <div className="text-xs text-zinc-500 truncate">
+                          {m.email}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         {isAdminMember && (
@@ -3353,8 +3686,18 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
                         )}
                         {amAdmin && !isAdminMember && (
                           <>
-                            <button onClick={() => makeAdmin(id)} className="px-2 py-0.5 rounded bg-yellow-600 text-xs">Make Admin</button>
-                            <button onClick={() => removeMember(id)} className="px-2 py-0.5 rounded bg-red-600 text-xs">Remove</button>
+                            <button
+                              onClick={() => makeAdmin(id)}
+                              className="px-2 py-0.5 rounded bg-yellow-600 text-xs"
+                            >
+                              Make Admin
+                            </button>
+                            <button
+                              onClick={() => removeMember(id)}
+                              className="px-2 py-0.5 rounded bg-red-600 text-xs"
+                            >
+                              Remove
+                            </button>
                           </>
                         )}
                       </div>
@@ -3367,26 +3710,45 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
             {/* Past Members */}
             <section>
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-zinc-300">Past Members</h4>
-                <button className="text-xs underline" onClick={() => fetchPastMembers(active._id)}>Refresh</button>
+                <h4 className="text-sm font-semibold text-zinc-300">
+                  Past Members
+                </h4>
+                <button
+                  className="text-xs underline"
+                  onClick={() => fetchPastMembers(active._id)}
+                >
+                  Refresh
+                </button>
               </div>
               {!pastMembers?.length ? (
-                <p className="text-sm text-zinc-500 mt-1">No past members found.</p>
+                <p className="text-sm text-zinc-500 mt-1">
+                  No past members found.
+                </p>
               ) : (
                 <div className="grid sm:grid-cols-2 gap-2 mt-2 max-h-48 overflow-y-auto">
                   {pastMembers.map((m) => {
                     const id = getId(m) || m?.user?._id;
                     return (
-                      <div key={id} className="flex items-center justify-between bg-[#0e1013] p-2 rounded border border-zinc-700">
+                      <div
+                        key={id}
+                        className="flex items-center justify-between bg-[#0e1013] p-2 rounded border border-zinc-700"
+                      >
                         <div className="min-w-0">
-                          <div className="font-medium truncate">{m.name || m.email}</div>
-                          <div className="text-xs text-zinc-500 truncate">{m.email}</div>
+                          <div className="font-medium truncate">
+                            {m.name || m.email}
+                          </div>
+                          <div className="text-xs text-zinc-500 truncate">
+                            {m.email}
+                          </div>
                         </div>
                         {amAdmin && (
                           <button
                             onClick={async () => {
                               try {
-                                await http.put("/api/groups/add-member", { groupId: active._id, userId: id });
+                                await http.put("/api/groups/add-member", {
+                                  groupId: active._id,
+                                  userId: id,
+                                });
                                 toast.success("Re-added to group");
                                 openGroup(active._id);
                                 fetchPastMembers(active._id);
@@ -3408,15 +3770,23 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
 
             {/* Danger zone */}
             <section className="pt-2 border-t border-zinc-800">
-              <h4 className="text-sm font-semibold text-zinc-300 mb-2">Danger Zone</h4>
+              <h4 className="text-sm font-semibold text-zinc-300 mb-2">
+                Danger Zone
+              </h4>
               <div className="flex flex-wrap gap-2">
                 {!amAdmin && (
-                  <button onClick={() => setConfirmLeave(true)} className="px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600">
+                  <button
+                    onClick={() => setConfirmLeave(true)}
+                    className="px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600"
+                  >
                     <LogOut className="inline mr-1" size={14} /> Leave Group
                   </button>
                 )}
                 {amAdmin && (
-                  <button onClick={() => setConfirmDelete(true)} className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white">
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white"
+                  >
                     <Trash2 className="inline mr-1" size={14} /> Delete Group
                   </button>
                 )}
@@ -3445,3 +3815,4 @@ export default function GroupsChatContainer({ embedded = true, initialGroupId })
     </div>
   );
 }
+

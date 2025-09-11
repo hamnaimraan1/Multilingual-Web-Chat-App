@@ -8,6 +8,8 @@
 // import { GetSocket } from "../utils/Sockets";
 // import uploadFile from "../utils/uploadFile";
 // import Avatar from "./Avatar";
+// import { setActiveThread, clearActiveThread } from "../utils/activeThread";
+// import { useParams } from "react-router-dom";
 
 // /* ---------------- helpers ---------------- */
 // const fmtTime = (d) => {
@@ -24,9 +26,13 @@
 // };
 // const safeText = (v) => (typeof v === "string" ? v : "");
 
+// // “pure emoji” detector: if it’s only emojis/space/newlines, treat as emoji-only
+// const EMOJI_RE = /^(?:\p{Emoji_Presentation}|\p{Extended_Pictographic}|\p{Emoji}|\s)+$/u;
+// const isEmojiOnly = (s = "") => !!s && EMOJI_RE.test(s);
+
 // const EMOJIS = [
-//   "😀","😁","😂","🤣","😃","😄","😅","😆","😉","😊","🙂","🙃","😋","😎","😍","😘",
-//   "👍","👎","👌","✌️","🤞","🤟","🤘","🤙","🙏","👏","🙌","🫶","💪","❤️","💖","💬",
+//   "😀","😁","😂","🤣","😃","😄","😅","😆","😉","😊","🙂","🙃","😋","😎","😍","😘","🥰","😇","🤩","🥳","😏","😒","😞","😔",
+//   "👍","👎","👌","✌️","🤞","🤟","🤘","🤙","🙏","👏","🙌","🫶","💪","❤️","💖","💬","✅","❌","❗","❓","⚠️",
 // ];
 
 // /* ---------------- media UI ---------------- */
@@ -61,6 +67,8 @@
 //     };
 //   }, []);
 
+
+
 //   const toggle = () => {
 //     const a = audioRef.current;
 //     if (!a) return;
@@ -77,11 +85,11 @@
 //   };
 
 //   return (
-//     <div className="flex items-center gap-3 text-zinc-100">
+//     <div className="flex items-center gap-3 text-zinc-100 w-full max-w-[70vw] sm:max-w-[60vw] md:max-w-[50vw]">
 //       <button onClick={toggle} className="w-9 h-9 rounded-full grid place-items-center bg-black/20 hover:opacity-90" title={playing ? "Pause" : "Play"}>
 //         {playing ? <Pause size={18} /> : <Play size={18} />}
 //       </button>
-//       <div className="w-40 sm:w-56 md:w-72">
+//       <div className="flex-1 min-w-0">
 //         <div className="h-1.5 rounded-full bg-zinc-300/30">
 //           <div className="h-1.5 rounded-full bg-zinc-100" style={{ width: `${pct}%` }} />
 //         </div>
@@ -96,7 +104,6 @@
 // const isOfficeOrPdf = (name = "") => /\.(pdf|docx?|pptx?|xlsx|csv|txt)(\?|$)/i.test(name);
 // const pickUrl = (m = {}) =>
 //   m.url || m.imageUrl || m.audioUrl || m.videoUrl || m.fileUrl || m.documentUrl || m.attachmentUrl || m.mediaUrl || m.path || null;
-
 // // if a doc accidentally came via image upload, rewrite to raw
 // const fixCloudinaryUrl = (u) => {
 //   if (!u) return u;
@@ -116,7 +123,7 @@
 //     : null;
 
 //   return (
-//     <div className="flex items-center gap-3 p-2 rounded-xl bg-black/10">
+//     <div className="flex items-center gap-3 p-2 rounded-xl bg-black/10 w-full max-w-[80vw] sm:max-w-[60vw]">
 //       <div className="w-10 h-10 rounded-lg bg-black/20 grid place-items-center"><FileText /></div>
 //       <div className="min-w-0 flex-1">
 //         <div className="text-sm truncate">{name}</div>
@@ -140,7 +147,7 @@
 //         <img
 //           src={url}
 //           alt={fileName || "image"}
-//           className="max-h-72 object-cover cursor-zoom-in max-w-[min(85vw,480px)]"
+//           className="max-h-72 object-cover cursor-zoom-in max-w-[min(85vw,520px)]"
 //           onClick={() => setOpen(true)}
 //         />
 //         <div className="flex items-center justify-between px-2 py-1 text-[11px] opacity-80">
@@ -229,7 +236,10 @@
 
 //   const [messages, setMessages] = useState([]);
 //   const [receiverData, setReceiverData] = useState(null);
+
+//   // text composer (use textarea for mobile like WhatsApp)
 //   const [text, setText] = useState("");
+//   const inputRef = useRef(null);
 
 //   // translation toggles
 //   const [showOriginalMap, setShowOriginalMap] = useState({});
@@ -242,8 +252,15 @@
 //   const audioChunksRef = useRef([]);
 //   const fileInputRef = useRef(null);
 
-//   const endRef = useRef(null);
+//   // emoji
+//   const [showEmoji, setShowEmoji] = useState(false);
+//   const [recentEmojis, setRecentEmojis] = useLocalStorage({ key: "recentEmojis", defaultValue: [] });
 
+//   const endRef = useRef(null);
+//   useEffect(() => {
+//   if (chatUserId) setActiveThread("direct", String(chatUserId));
+//   return () => clearActiveThread();
+// }, [chatUserId]);
 //   /* sockets */
 //   useEffect(() => { setMessages([]); }, [chatUserId]);
 
@@ -303,6 +320,20 @@
 
 //   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
+//   // close emoji panel on ESC, send on Enter (like WhatsApp) when panel is open
+//   useEffect(() => {
+//     const onKey = (e) => {
+//       if (!showEmoji) return;
+//       if (e.key === "Escape" ||e.key === "Enter" ) setShowEmoji(false);
+//       if (e.key === "Enter") {
+//         e.preventDefault();
+//         if (text.trim()) sendText();
+//       }
+//     };
+//     document.addEventListener("keydown", onKey);
+//     return () => document.removeEventListener("keydown", onKey);
+//   }, [showEmoji, text]); // eslint-disable-line
+
 //   /* actions */
 //   const appendOptimistic = (msg) =>
 //     setMessages((prev) =>
@@ -327,6 +358,7 @@
 //     });
 //     socket.emit?.("side", myId);
 //     setText("");
+//     inputRef.current?.focus();
 //   };
 
 //   const detectMessageType = (file) => {
@@ -467,8 +499,16 @@
 //   );
 
 //   /* ---------------- UI bits ---------------- */
-//   const [showEmoji, setShowEmoji] = useState(false);
-//   const addEmoji = (emo) => setText((s) => (s || "") + emo);
+//   const addEmoji = (emo) => {
+//     setText((s) => (s || "") + emo);
+//     // keep a tiny “recent” list (max 24)
+//     setRecentEmojis((arr) => {
+//       const next = [emo, ...arr.filter((x) => x !== emo)].slice(0, 24);
+//       return next;
+//     });
+//     // keep focus in input like WhatsApp
+//     setTimeout(() => inputRef.current?.focus(), 0);
+//   };
 //   const SeenTicks = ({ seen }) => (
 //     <span className="inline-flex items-center gap-0.5 ml-1 align-middle">
 //       {seen ? <CheckCheck size={12} /> : <Check size={12} />}
@@ -492,7 +532,7 @@
 //       </div>
 
 //       {/* Messages */}
-//       <div className="flex-1 overflow-y-auto p-3 sm:p-4 bg-[#070809]">
+//       <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 bg-[#070809]">
 //         {(!messages || messages.length === 0) && (
 //           <p className="text-zinc-500">Start the conversation 👋</p>
 //         )}
@@ -506,15 +546,23 @@
 //           const type = resolveType(msg);
 
 //           return (
-//             <div key={msg._id || msg.clientNonce || `m-${i}`} className={`mb-2 sm:mb-3 ${wrap}`} ref={i === messages.length - 1 ? endRef : null}>
-//               <div className={`inline-block px-3 py-2 rounded-2xl max-w-[88%] sm:max-w-[78%] md:max-w-[70%] break-words ${bubble}`}>
+//             <div key={msg._id || msg.clientNonce || `m-${i}`} className={`mb-1.5 sm:mb-2 ${wrap}`} ref={i === messages.length - 1 ? endRef : null}>
+//               <div
+//                 className={[
+//                   "inline-block px-3 py-2 rounded-2xl break-words",
+//                   // responsive max widths (WhatsApp-like)
+//                   "max-w-[84vw] sm:max-w-[70vw] md:max-w-[62vw] lg:max-w-[55vw]",
+//                   bubble,
+//                 ].join(" ")}
+//               >
 //                 {/* TEXT */}
 //                 {type === "text" && (
-//                   <div className="text-sm whitespace-pre-wrap">
-//                     {msg.translatedText && !isMe
+//                   <div className="text-[15px] whitespace-pre-wrap leading-6">
+//                     {msg.translatedText && !isMe && !isEmojiOnly(msg.text)
 //                       ? (showOriginalMap[msg._id] ? safeText(msg.text) : safeText(msg.translatedText))
 //                       : safeText(msg.text)}
-//                     {msg.translatedText && !isMe && (
+//                     {/* Hide translate toggle if pure-emoji */}
+//                     {msg.translatedText && !isMe && !isEmojiOnly(msg.text) && (
 //                       <div className="text-[11px] mt-1 opacity-80">
 //                         <button
 //                           onClick={() => setShowOriginalMap((m) => ({ ...m, [msg._id]: !m[msg._id] }))}
@@ -597,80 +645,113 @@
 //       </div>
 
 //       {/* Composer */}
-//       <div className="p-2 sm:p-3 border-t border-zinc-800 flex items-center gap-2 bg-[#0b0d11]">
-//         {/* file */}
-//         <input
-//           ref={fileInputRef}
-//           type="file"
-//           hidden
-//           accept="image/*,audio/*,video/*,application/pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,*/*"
-//           onChange={(e) => {
-//             const f = e.target.files?.[0];
-//             if (!f) return;
-//             sendFile(f);
-//             e.target.value = null;
-//           }}
-//         />
-//         <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-md hover:bg-zinc-900" title="Attach">
-//           <Paperclip />
-//         </button>
+//       <div className="relative p-2 sm:p-3 border-t border-zinc-800 bg-[#0b0d11]">
+//         {/* Emoji sheet (mobile: full width; desktop: popover) */}
+//         {showEmoji && (
+//           <div
+//             className="
+//               sm:absolute sm:bottom-14 sm:left-2
+//               fixed left-0 right-0 bottom-[64px] z-30
+//               bg-[#0e1013] border border-zinc-700 rounded-t-2xl sm:rounded-xl
+//               shadow max-h-[45vh] sm:max-h-56 overflow-y-auto
+//               px-3 pt-2 pb-3
+//             "
+//           >
+//             {/* Tabs: Recent + All (very light implementation) */}
+//             <div className="flex items-center gap-3 mb-2 text-sm text-zinc-300">
+//               <span className="opacity-80">Recent</span>
+//               <span className="opacity-40">•</span>
+//               <span className="opacity-80">Smileys</span>
+//             </div>
 
-//         {/* emoji */}
-//         <div className="relative">
+//             {recentEmojis.length > 0 && (
+//               <div className="grid grid-cols-8 sm:grid-cols-10 md:grid-cols-12 gap-1 mb-2">
+//                 {recentEmojis.map((e, idx) => (
+//                   <button key={`r-${idx}`} onClick={() => addEmoji(e)} className="p-1 text-2xl sm:text-xl leading-none">{e}</button>
+//                 ))}
+//               </div>
+//             )}
+
+//             <div className="grid grid-cols-8 sm:grid-cols-10 md:grid-cols-12 gap-1">
+//               {EMOJIS.map((e, idx) => (
+//                 <button key={`${e}-${idx}`} onClick={() => addEmoji(e)} className="p-1 text-2xl sm:text-xl leading-none">{e}</button>
+//               ))}
+//             </div>
+//           </div>
+//         )}
+
+//         <div className="flex items-end gap-2">
+//           {/* file */}
+//           <input
+//             ref={fileInputRef}
+//             type="file"
+//             hidden
+//             accept="image/*,audio/*,video/*,application/pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,*/*"
+//             onChange={(e) => {
+//               const f = e.target.files?.[0];
+//               if (!f) return;
+//               sendFile(f);
+//               e.target.value = null;
+//             }}
+//           />
+//           <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-md hover:bg-zinc-900" title="Attach">
+//             <Paperclip />
+//           </button>
+
+//           {/* emoji toggle */}
 //           <button onClick={() => setShowEmoji((s) => !s)} className="p-2 rounded-md hover:bg-zinc-900" title="Emoji">
 //             <Smile />
 //           </button>
-//           {showEmoji && (
-//             <div className="absolute bottom-12 left-0 bg-[#0e1013] border border-zinc-700 p-2 rounded-lg grid grid-cols-8 gap-1 shadow z-20 max-h-56 overflow-y-auto w-[18rem]">
-//               {EMOJIS.map((e, idx) => (
-//                 <button
-//                   key={`${e}-${idx}`}
-//                   onClick={() => { addEmoji(e); setShowEmoji(false); }}
-//                   className="p-1 text-lg leading-none"
-//                   title={e}
-//                 >
-//                   {e}
-//                 </button>
-//               ))}
-//             </div>
-//           )}
+
+//           {/* textarea input (Enter sends, Shift+Enter newline) */}
+//           <div className="flex-1 min-w-0">
+//             <textarea
+//               ref={inputRef}
+//               value={text}
+//               rows={1}
+//               onChange={(e) => setText(e.target.value)}
+//               onKeyDown={(e) => {
+//                 if (e.key === "Enter" && !e.shiftKey) {
+//                   e.preventDefault();
+//                   if (text.trim()) sendText();
+//                 }
+//               }}
+//               placeholder="Type a message…"
+//               className="
+//                 w-full resize-none
+//                 px-3 py-2 rounded-xl bg-[#0b0d11]
+//                 border border-zinc-700 outline-none text-zinc-200
+//                 leading-6 max-h-40 overflow-y-auto
+//               "
+//             />
+//           </div>
+
+//           {/* mic */}
+//           <button
+//             onClick={recording ? stopRecording : startRecording}
+//             className={`p-2 rounded-md hover:bg-zinc-900 ${recording ? "text-red-500" : ""}`}
+//             title={recording ? "Stop recording" : "Record voice"}
+//           >
+//             <Mic />
+//           </button>
+
+//           {/* send */}
+//           <button
+//             onClick={sendText}
+//             disabled={!text.trim()}
+//             className={`px-3 sm:px-4 py-2 rounded-xl text-white flex items-center gap-2 ${
+//               !text.trim() ? "bg-emerald-900 cursor-not-allowed" : "bg-emerald-700 hover:bg-emerald-600"
+//             }`}
+//           >
+//             <Send size={16} /> <span className="hidden sm:inline">Send</span>
+//           </button>
 //         </div>
-
-//         {/* input */}
-//         <input
-//           value={text}
-//           onChange={(e) => setText(e.target.value)}
-//           onKeyDown={(e) => e.key === "Enter" && sendText()}
-//           placeholder="Type a message…"
-//           className="flex-1 px-3 py-2 rounded-xl bg-[#0b0d11] border border-zinc-700 outline-none text-zinc-200"
-//         />
-
-//         {/* mic */}
-//         <button
-//           onClick={recording ? stopRecording : startRecording}
-//           className={`p-2 rounded-md hover:bg-zinc-900 ${recording ? "text-red-500" : ""}`}
-//           title={recording ? "Stop recording" : "Record voice"}
-//         >
-//           <Mic />
-//         </button>
-
-//         {/* send */}
-//         <button
-//           onClick={sendText}
-//           disabled={!text.trim()}
-//           className={`px-3 sm:px-4 py-2 rounded-xl text-white flex items-center gap-2 ${
-//             !text.trim() ? "bg-emerald-900 cursor-not-allowed" : "bg-emerald-700 hover:bg-emerald-600"
-//           }`}
-//         >
-//           <Send size={16} /> <span className="hidden sm:inline">Send</span>
-//         </button>
 //       </div>
 //     </div>
 //   );
 // };
 
 // export default ChatContainer;
-// ChatContainer.jsx
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useLocalStorage } from "@mantine/hooks";
 import {
@@ -681,7 +762,7 @@ import { GetSocket } from "../utils/Sockets";
 import uploadFile from "../utils/uploadFile";
 import Avatar from "./Avatar";
 import { setActiveThread, clearActiveThread } from "../utils/activeThread";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 
 /* ---------------- helpers ---------------- */
 const fmtTime = (d) => {
@@ -738,8 +819,6 @@ const VoiceBubble = ({ src }) => {
       a.removeEventListener("ended", onEnd);
     };
   }, []);
-
-
 
   const toggle = () => {
     const a = audioRef.current;
@@ -906,6 +985,14 @@ const ChatContainer = ({ chatUserId, onBack }) => {
   const [userLS] = useLocalStorage({ key: "userData", defaultValue: {} });
   const myId = useMemo(() => userLS?._id || userLS?.id || null, [userLS]);
 
+  // route awareness to auto-hide on /g
+  const location = useLocation();
+  const params   = useParams();
+  const routePeerId = params?.peerId || params?.uid || params?.id || null;
+  const dmId = chatUserId ?? routePeerId;
+  const isGroupPath = /^\/g(\/|$)/i.test(location.pathname);
+  const inactive = isGroupPath || !dmId;
+
   const [messages, setMessages] = useState([]);
   const [receiverData, setReceiverData] = useState(null);
 
@@ -929,23 +1016,34 @@ const ChatContainer = ({ chatUserId, onBack }) => {
   const [recentEmojis, setRecentEmojis] = useLocalStorage({ key: "recentEmojis", defaultValue: [] });
 
   const endRef = useRef(null);
-  useEffect(() => {
-  if (chatUserId) setActiveThread("direct", String(chatUserId));
-  return () => clearActiveThread();
-}, [chatUserId]);
-  /* sockets */
-  useEffect(() => { setMessages([]); }, [chatUserId]);
 
+  /* ----- THREAD MARKER: keep hooks order stable, guard with `inactive` inside ----- */
   useEffect(() => {
-    if (!socket || !chatUserId || !myId) return;
+    if (inactive) {
+      clearActiveThread();
+    } else if (dmId) {
+      setActiveThread("direct", String(dmId));
+    }
+    return () => clearActiveThread();
+  }, [inactive, dmId]);
 
-    const boot = () => socket.emit("msgPage", chatUserId);
+  // reset messages when DM changes
+  useEffect(() => {
+    if (inactive) return;
+    setMessages([]);
+  }, [dmId, inactive]);
+
+  // socket boot / listeners
+  useEffect(() => {
+    if (inactive || !socket || !dmId || !myId) return;
+
+    const boot = () => socket.emit("msgPage", dmId);
     if (socket.connected) boot(); else socket.on("connect", boot);
 
     socket.on("userInfo", (data) => setReceiverData(data));
 
     socket.on("message", (data) => {
-      if (!data || String(data.chatWith) !== String(chatUserId)) return;
+      if (!data || String(data.chatWith) !== String(dmId)) return;
 
       const mergedFromServer = (data.original || []).map((msg) => {
         const t = (data.translated || []).find((x) => x._id === msg._id);
@@ -961,9 +1059,9 @@ const ChatContainer = ({ chatUserId, onBack }) => {
       setMessages((prev) => dedupeMerge(prev, mergedFromServer));
 
       const hasNewUnseen = (data.original || []).some(
-        (m) => String(m.msgByUser) === String(chatUserId) && !m.seen
+        (m) => String(m.msgByUser) === String(dmId) && !m.seen
       );
-      if (hasNewUnseen) socket.emit("seen", { senderId: chatUserId, receiverId: myId });
+      if (hasNewUnseen) socket.emit("seen", { senderId: dmId, receiverId: myId });
     });
 
     socket.on("seenStatusUpdate", (ids) => {
@@ -977,8 +1075,9 @@ const ChatContainer = ({ chatUserId, onBack }) => {
       socket.off("message");
       socket.off("seenStatusUpdate");
     };
-  }, [socket, chatUserId, myId]);
+  }, [socket, dmId, myId, inactive]);
 
+  // ensure toggles exist for each msg
   useEffect(() => {
     const textMap = { ...showOriginalMap };
     const voiceMap = { ...showVoiceOriginalMap };
@@ -988,15 +1087,19 @@ const ChatContainer = ({ chatUserId, onBack }) => {
     }
     setShowOriginalMap(textMap);
     setShowVoiceOriginalMap(voiceMap);
-  }, [messages]); // eslint-disable-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  // autoscroll
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-  // close emoji panel on ESC, send on Enter (like WhatsApp) when panel is open
+  // close emoji panel on ESC, send on Enter when panel is open
   useEffect(() => {
     const onKey = (e) => {
       if (!showEmoji) return;
-      if (e.key === "Escape" ||e.key === "Enter" ) setShowEmoji(false);
+      if (e.key === "Escape" || e.key === "Enter") setShowEmoji(false);
       if (e.key === "Enter") {
         e.preventDefault();
         if (text.trim()) sendText();
@@ -1004,7 +1107,8 @@ const ChatContainer = ({ chatUserId, onBack }) => {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [showEmoji, text]); // eslint-disable-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showEmoji, text]);
 
   /* actions */
   const appendOptimistic = (msg) =>
@@ -1018,10 +1122,10 @@ const ChatContainer = ({ chatUserId, onBack }) => {
 
   const sendText = () => {
     const val = (text || "").trim();
-    if (!val || !socket || !myId || !chatUserId) return;
+    if (inactive || !val || !socket || !myId || !dmId) return;
 
     const clientNonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const payload = { sender: myId, receiver: chatUserId, messageType: "text", text: val, clientNonce };
+    const payload = { sender: myId, receiver: dmId, messageType: "text", text: val, clientNonce };
 
     appendOptimistic({ msgByUser: myId, ...payload });
 
@@ -1042,7 +1146,7 @@ const ChatContainer = ({ chatUserId, onBack }) => {
   };
 
   const sendFile = async (file, forcedType) => {
-    if (!file || !socket || !myId || !chatUserId) return;
+    if (inactive || !file || !socket || !myId || !dmId) return;
 
     // local preview
     const localUrl = URL.createObjectURL(file);
@@ -1052,7 +1156,7 @@ const ChatContainer = ({ chatUserId, onBack }) => {
     appendOptimistic({
       msgByUser: myId,
       sender: myId,
-      receiver: chatUserId,
+      receiver: dmId,
       messageType,
       url: localUrl,
       imageUrl: messageType === "image" ? localUrl : undefined,
@@ -1093,7 +1197,7 @@ const ChatContainer = ({ chatUserId, onBack }) => {
       // emit to server (include generic url to be safe)
       const payload = {
         sender: myId,
-        receiver: chatUserId,
+        receiver: dmId,
         messageType,
         url: cloudUrl,
         imageUrl: messageType === "image" ? cloudUrl : undefined,
@@ -1149,9 +1253,9 @@ const ChatContainer = ({ chatUserId, onBack }) => {
 
   const handleTranslateVoice = useCallback(
     (audioUrl, messageId) => {
-      if (!socket || !audioUrl || !messageId) return;
+      if (inactive || !socket || !audioUrl || !messageId) return;
       setTranslatingMessageId(messageId);
-      socket.emit("translateVoice", { audioUrl, receiverId: chatUserId, messageId });
+      socket.emit("translateVoice", { audioUrl, receiverId: dmId, messageId });
 
       const onOk = (data) => {
         setMessages((prev) =>
@@ -1167,7 +1271,7 @@ const ChatContainer = ({ chatUserId, onBack }) => {
       socket.once("voiceTranslationResult", onOk);
       socket.once("voiceTranslationError", onErr);
     },
-    [socket, chatUserId]
+    [socket, dmId, inactive]
   );
 
   /* ---------------- UI bits ---------------- */
@@ -1186,6 +1290,9 @@ const ChatContainer = ({ chatUserId, onBack }) => {
       {seen ? <CheckCheck size={12} /> : <Check size={12} />}
     </span>
   );
+
+  /* ---------- render guard (AFTER hooks) ---------- */
+  if (inactive) return null;
 
   return (
     <div className="h-full min-h-0 bg-[#0b0d11] text-zinc-100 rounded-2xl overflow-hidden flex flex-col">
@@ -1222,7 +1329,6 @@ const ChatContainer = ({ chatUserId, onBack }) => {
               <div
                 className={[
                   "inline-block px-3 py-2 rounded-2xl break-words",
-                  // responsive max widths (WhatsApp-like)
                   "max-w-[84vw] sm:max-w-[70vw] md:max-w-[62vw] lg:max-w-[55vw]",
                   bubble,
                 ].join(" ")}
@@ -1233,7 +1339,6 @@ const ChatContainer = ({ chatUserId, onBack }) => {
                     {msg.translatedText && !isMe && !isEmojiOnly(msg.text)
                       ? (showOriginalMap[msg._id] ? safeText(msg.text) : safeText(msg.translatedText))
                       : safeText(msg.text)}
-                    {/* Hide translate toggle if pure-emoji */}
                     {msg.translatedText && !isMe && !isEmojiOnly(msg.text) && (
                       <div className="text-[11px] mt-1 opacity-80">
                         <button
@@ -1318,18 +1423,17 @@ const ChatContainer = ({ chatUserId, onBack }) => {
 
       {/* Composer */}
       <div className="relative p-2 sm:p-3 border-t border-zinc-800 bg-[#0b0d11]">
-        {/* Emoji sheet (mobile: full width; desktop: popover) */}
+        {/* Emoji sheet */}
         {showEmoji && (
           <div
             className="
               sm:absolute sm:bottom-14 sm:left-2
-              fixed left-0 right-0 bottom-[64px] z-30
+              fixed left-0 right-0 bottom=[64px] z-30
               bg-[#0e1013] border border-zinc-700 rounded-t-2xl sm:rounded-xl
               shadow max-h-[45vh] sm:max-h-56 overflow-y-auto
               px-3 pt-2 pb-3
             "
           >
-            {/* Tabs: Recent + All (very light implementation) */}
             <div className="flex items-center gap-3 mb-2 text-sm text-zinc-300">
               <span className="opacity-80">Recent</span>
               <span className="opacity-40">•</span>
@@ -1375,7 +1479,7 @@ const ChatContainer = ({ chatUserId, onBack }) => {
             <Smile />
           </button>
 
-          {/* textarea input (Enter sends, Shift+Enter newline) */}
+          {/* textarea input */}
           <div className="flex-1 min-w-0">
             <textarea
               ref={inputRef}
