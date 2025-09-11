@@ -2,9 +2,23 @@
 // import React, { useEffect, useMemo, useRef, useState } from "react";
 // import { GetSocket } from "../utils/Sockets";
 // import {
-//   ArrowUpLeft, EllipsisVertical, Image as ImageIcon, LogOut,
-//   MessageCircle, SquarePlus, UserPlus, User, Video, Search,
-//   Pin, BellOff, Archive, ChevronDown, ChevronRight, FileText, Play, Users
+//   ArrowUpLeft,
+//   EllipsisVertical,
+//   Image as ImageIcon,
+//   LogOut,
+//   MessageCircle,
+//   UserPlus,
+//   Video,
+//   Search,
+//   Pin,
+//   BellOff,
+//   Archive,
+//   ChevronDown,
+//   ChevronRight,
+//   FileText,
+//   Play,
+//   Users,
+//   Trash2,
 // } from "lucide-react";
 // import Avatar from "./Avatar";
 // import { useLocalStorage } from "@mantine/hooks";
@@ -15,16 +29,132 @@
 // import http from "../utils/http";
 // import toast, { Toaster } from "react-hot-toast";
 
-// const API_BASE = "http://localhost:5000/api/chat";
+// const CHAT_API_BASE = "http://localhost:5000/api/chat";
 
-// /* helpers */
+// /* ---------- helpers ---------- */
 // const fmtTime = (d) => {
 //   try {
 //     const date = new Date(d);
 //     return isNaN(date) ? "" : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-//   } catch { return ""; }
+//   } catch {
+//     return "";
+//   }
 // };
 
+// const isOfficeOrPdf = (name = "") =>
+//   /\.(pdf|docx?|pptx?|xlsx|csv|txt)(\?|$)/i.test(name);
+
+// const pickUrl = (m = {}) =>
+//   m.url ||
+//   m.imageUrl ||
+//   m.audioUrl ||
+//   m.videoUrl ||
+//   m.fileUrl ||
+//   m.documentUrl ||
+//   m.attachmentUrl ||
+//   m.mediaUrl ||
+//   m.path ||
+//   null;
+
+// const resolveType = (m = {}) => {
+//   if (m.messageType) return m.messageType;
+//   if (m.imageUrl) return "image";
+//   if (m.audioUrl) return "audio";
+//   if (m.videoUrl) return "video";
+//   if (m.fileUrl || isOfficeOrPdf(m.fileName)) return "file";
+//   const u = pickUrl(m);
+//   if (u) {
+//     if (/\/video\/upload\//.test(u)) return "video";
+//     if (/\/raw\/upload\//.test(u) || isOfficeOrPdf(u)) return "file";
+//     return "image";
+//   }
+//   return "text";
+// };
+
+// const getSenderInfo = (m = {}) => {
+//   const id =
+//     m?.sender?._id ??
+//     m?.senderId ??
+//     (typeof m?.msgByUser === "object" ? m?.msgByUser?._id : m?.msgByUser) ??
+//     m?.user?._id ??
+//     m?.userId ??
+//     m?.from ??
+//     null;
+
+//   const name =
+//     m?.sender?.name ??
+//     m?.user?.name ??
+//     m?.fromName ??
+//     m?.senderName ??
+//     m?.authorName ??
+//     "";
+
+//   return { id, name };
+// };
+
+// const normalizeMessage = (raw) => {
+//   if (!raw) return null;
+//   const m = raw.message || raw;
+//   const createdAt = m.createdAt || m.timestamp || new Date().toISOString();
+//   const type = resolveType(m);
+//   const url = pickUrl(m);
+//   const { id: senderId, name: senderName } = getSenderInfo(m);
+//   return {
+//     ...m,
+//     _id: m._id || raw._id,
+//     createdAt,
+//     messageType: type,
+//     url,
+//     _senderId: senderId || null,
+//     _senderName: senderName || "",
+//   };
+// };
+
+// const buildPreviewFromMsg = (m, fallbackTime, currentUserId) => {
+//   if (!m) return { text: "", kind: "none", time: fallbackTime || "", senderId: null, senderName: "", prefix: "" };
+//   const n = normalizeMessage(m);
+//   const text =
+//     n?.translatedMessage ||
+//     n?.message ||
+//     n?.text ||
+//     n?.content ||
+//     n?.caption ||
+//     "";
+//   const kind = n?.messageType || "text";
+//   const time = n?.createdAt || fallbackTime || "";
+//   const senderId = n?._senderId || null;
+//   const senderName = n?._senderName || "";
+
+//   const prefix =
+//     senderId && currentUserId && String(senderId) === String(currentUserId)
+//       ? "You"
+//       : senderName || "";
+
+//   return { text, kind, time, senderId, senderName, prefix };
+// };
+
+// const extractGroupPreviewFromList = (g, currentUserId) => {
+//   // Full object on list?
+//   const lm = typeof g?.lastMessage === "object" ? g.lastMessage : null;
+//   if (lm) return buildPreviewFromMsg(lm, g?.updatedAt || g?.createdAt, currentUserId);
+
+//   // Lightweight fields some APIs provide
+//   if (g?.lastMessageText || g?.lastMessageType || g?.lastMessageAt || g?.lastMessageSenderId || g?.lastMessageSenderName) {
+//     const time = g?.lastMessageAt || g?.updatedAt || g?.createdAt || "";
+//     const kind = g?.lastMessageType || (g?.lastMessageText ? "text" : "none");
+//     const senderId = g?.lastMessageSenderId || null;
+//     const senderName = g?.lastMessageSenderName || "";
+//     const prefix =
+//       senderId && currentUserId && String(senderId) === String(currentUserId)
+//         ? "You"
+//         : senderName || "";
+//     return { text: g?.lastMessageText || "", kind, time, senderId, senderName, prefix };
+//   }
+
+//   return { text: "", kind: "none", time: g?.updatedAt || g?.createdAt || "", senderId: null, senderName: "", prefix: "" };
+// };
+
+// /* ---------- component ---------- */
 // const Side = ({ onSelectChat }) => {
 //   const navigate = useNavigate();
 //   const [user, setUser] = useLocalStorage({ key: "userData", defaultValue: {} });
@@ -34,50 +164,50 @@
 //       ? GetSocket()
 //       : GetSocket?.socket || GetSocket?.current || GetSocket) || null;
 
+//   /* modals */
 //   const [openSearchUser, setOpenSearchUser] = useState(false);
 //   const [editProfile, setEditProfile] = useState(false);
 
-//   // tabs
-//   const [activeTab, setActiveTab] = useState("chats"); // "chats" | "groups"
+//   /* tabs */
+//   const [activeTab, setActiveTab] = useState("groups");
 
-//   // chats state
+//   /* chats state */
+//   // NOTE: keep variable name as in your code
+  
 //   const [allUsers, setAllUsers] = useState([]);
 //   const [typingMap, setTypingMap] = useState({});
-//   const [lastPreviewMap, setLastPreviewMap] = useState({}); // { [peerId]: { text, kind, time } }
+//   const [lastPreviewMap, setLastPreviewMap] = useState({});
 
-//   // groups state
+//   /* groups state */
 //   const [groups, setGroups] = useState([]);
 //   const [groupsLoading, setGroupsLoading] = useState(false);
-//   const [groupUnread, setGroupUnread] = useState({}); // optional: if your API provides counts
+//   const [groupUnread, setGroupUnread] = useState({});
 
-//   // common UI state
+//   /* ui state */
 //   const [search, setSearch] = useState("");
-//   const [menuOpen, setMenuOpen] = useState(null);
-//   const [showArchived, setShowArchived] = useState(false);
-//   const menuRef = useRef(null);
+//   const [chatMenuOpen, setChatMenuOpen] = useState(null);
+//   const [groupMenuOpen, setGroupMenuOpen] = useState(null);
+//   const [showArchivedChats, setShowArchivedChats] = useState(false);
+//   const [showArchivedGroups, setShowArchivedGroups] = useState(false);
 
-//   /* ----- ask server for the latest thread per peer (for preview only) ----- */
+//   const chatMenuRef = useRef(null);
+//   const groupMenuRef = useRef(null);
+
+//   /* ---------- sockets: 1:1 previews ---------- */
 //   const requestLastForPeer = (peerId) => {
 //     if (!socket || !peerId) return;
-//     // This uses your existing contract; it does NOT mark seen by itself.
 //     socket.emit("msgPage", peerId);
 //   };
 
-//   /* socket: conversations list (1:1) */
 //   useEffect(() => {
 //     if (!socket || !user?._id) return;
-
 //     socket.emit("side", user._id);
 
 //     const onConv = (data) => {
 //       const updated = (data || []).map((conv) => {
 //         const youAreSender = String(conv?.sender?._id) === String(user._id);
 //         const peer = youAreSender ? conv.receiver : conv.sender;
-//         return {
-//           ...conv,
-//           userDetails: peer,
-//           unseenMsg: conv.unseen,
-//         };
+//         return { ...conv, userDetails: peer, unseenMsg: conv.unseen };
 //       });
 
 //       setAllUsers((prev) => {
@@ -93,13 +223,10 @@
 //               }
 //             : c;
 //         });
-
-//         // fetch last message preview for each peer if we don't have it yet
 //         next.forEach((c) => {
 //           const pid = c?.userDetails?._id;
 //           if (pid && !lastPreviewMap[pid]) requestLastForPeer(pid);
 //         });
-
 //         return next;
 //       });
 //     };
@@ -109,63 +236,142 @@
 //       setTypingMap((m) => (isTyping ? { ...m, [from]: Date.now() } : { ...m, [from]: 0 }));
 //     };
 
-//     // When we request msgPage(peerId), server sends: { chatWith, original: [], translated?: [] }
 //     const onMessage = (payload) => {
 //       try {
 //         const peerId = payload?.chatWith;
 //         const list = Array.isArray(payload?.original) ? payload.original : [];
 //         if (!peerId || list.length === 0) return;
-
 //         const last = list[list.length - 1] || {};
-//         const time = last?.createdAt || last?.updatedAt || last?.time || "";
-
-//         // Try to get translated preview if available
-//         let text =
-//           last?.translatedMessage ||
-//           last?.text ||
-//           last?.content ||
-//           (typeof last?.message === "string" ? last?.message : "");
-
-//         if (!text && Array.isArray(payload?.translated)) {
-//           const t = payload.translated.find((t) => t?._id === last?._id);
-//           if (t?.translatedMessage) text = t.translatedMessage;
-//         }
-
-//         // Detect kind for icon
-//         const kind = last?.messageType ||
-//           (last?.imageUrl ? "image" :
-//            last?.videoUrl ? "video" :
-//            last?.audioUrl ? "audio" :
-//            last?.fileUrl  ? "file"  :
-//            (text ? "text" : "none"));
-
-//         setLastPreviewMap((m) => {
-//           const prev = m[peerId];
-//           if (prev && prev.time === time && prev.text === text && prev.kind === kind) return m;
-//           return { ...m, [peerId]: { text, kind, time } };
-//         });
-//       } catch {
-//         /* noop */
-//       }
+//         const preview = buildPreviewFromMsg(last, undefined, user?._id);
+//         setLastPreviewMap((m) => ({ ...m, [peerId]: preview }));
+//       } catch {}
 //     };
 
 //     socket.on("conv", onConv);
 //     socket.on("typing", onTyping);
 //     socket.on("message", onMessage);
-
 //     return () => {
 //       socket.off("conv", onConv);
 //       socket.off("typing", onTyping);
 //       socket.off("message", onMessage);
 //     };
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
 //   }, [socket, user?._id, lastPreviewMap]);
 
-//   /* groups: load when tab opens (or once) */
+//   /* ---------- groups load + robust enrichment ---------- */
+
+//   // Try several common endpoints to fetch only the last message of a group.
+//   const fetchGroupLastMessage = async (groupId) => {
+//     const tryGet = async (urlBuilder, label) => {
+//       try {
+//         const res = await http.get(urlBuilder(groupId));
+//         console.debug("[groups:last] OK", label, res?.data);
+//         return res?.data || null;
+//       } catch (e) {
+//         console.debug("[groups:last] FAIL", label, e?.response?.status || e?.message);
+//         return null;
+//       }
+//     };
+
+//     // 1) Explicit last endpoint
+//     let data =
+//       (await tryGet((id) => `/api/groups/${id}/last`, "groups/:id/last`")) ||
+//       // 2) messages?limit=1 (descending by default in many APIs)
+//       (await tryGet((id) => `/api/groups/${id}/messages?limit=1`, "groups/:id/messages?limit=1")) ||
+//       // 3) global messages endpoint filtered by group
+//       (await tryGet((id) => `/api/messages?groupId=${id}&limit=1`, "messages?groupId`")) ||
+//       // 4) another common variant
+//       (await tryGet((id) => `/api/messages/group/${id}?limit=1`, "messages/group/:id`"));
+
+//     // Normalize to a single message object
+//     if (!data) return null;
+
+//     const msg =
+//       data.message ||
+//       (Array.isArray(data.messages) && data.messages[0]) ||
+//       data.lastMessage ||
+//       data.result ||
+//       null;
+
+//     return msg || null;
+//   };
+
 //   const loadGroups = async () => {
 //     try {
 //       setGroupsLoading(true);
 //       const { data } = await http.get("/api/groups");
-//       setGroups(data?.groups || []);
+//       const list = data?.groups || [];
+//       console.debug("[groups:list]", list);
+
+//       // 1) provisional previews
+//       let next = list.map((g) => ({
+//         ...g,
+//         preview: extractGroupPreviewFromList(g, user?._id),
+//       }));
+
+//       setGroups((prev) => {
+//         const byId = new Map(prev.map((g) => [g._id, g]));
+//         return next.map((g) => {
+//           const local = byId.get(g._id);
+//           return {
+//             ...g,
+//             isPinned: local?.isPinned ?? g.isPinned,
+//             isArchived: local?.isArchived ?? g.isArchived,
+//             isMuted: local?.isMuted ?? g.isMuted,
+//           };
+//         });
+//       });
+
+//       // 2) enrich where preview is missing or lastMessage not embedded
+//       const need = next.filter((g) => {
+//         const p = g.preview || {};
+//         const lastIsObject = typeof g?.lastMessage === "object" && g?.lastMessage;
+//         return (!p.text && (p.kind === "none" || p.kind === "text")) || !lastIsObject;
+//       });
+
+//       if (need.length) {
+//         const results = await Promise.allSettled(
+//           need.map(async (g) => {
+//             // Prefer detail endpoint first
+//             let detail = null;
+//             try {
+//               const res = await http.get(`/api/groups/${g._id}`);
+//               detail = res?.data?.group || res?.data || null;
+//               console.debug("[groups:detail]", g._id, detail);
+//             } catch (e) {
+//               console.debug("[groups:detail] FAIL", g._id, e?.response?.status || e?.message);
+//             }
+
+//             let last =
+//               (detail && typeof detail.lastMessage === "object" && detail.lastMessage) ||
+//               (detail && Array.isArray(detail.messages) && detail.messages[detail.messages.length - 1]) ||
+//               null;
+
+//             // If still no last, try the fallback chain
+//             if (!last) {
+//               last = await fetchGroupLastMessage(g._id);
+//             }
+
+//             return { id: g._id, detail, last };
+//           })
+//         );
+
+//         setGroups((curr) => {
+//           const by = new Map(curr.map((g) => [g._id, g]));
+//           results.forEach((r) => {
+//             if (r.status !== "fulfilled") return;
+//             const { id, last, detail } = r.value || {};
+//             const old = by.get(id);
+//             const preview = buildPreviewFromMsg(
+//               last,
+//               (detail && (detail.updatedAt || detail.createdAt)) || old?.updatedAt || old?.createdAt,
+//               user?._id
+//             );
+//             by.set(id, { ...old, preview });
+//           });
+//           return Array.from(by.values());
+//         });
+//       }
 //     } catch (err) {
 //       toast.error(err?.response?.data?.message || "Failed to load groups");
 //     } finally {
@@ -174,19 +380,24 @@
 //   };
 
 //   useEffect(() => {
-//     if (activeTab === "groups" && groups.length === 0) {
-//       loadGroups();
-//     }
-//   }, [activeTab]); // eslint-disable-line
+//     if (activeTab === "groups" && groups.length === 0) loadGroups();
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, [activeTab, user?._id]);
 
-//   /* close menu on outside click */
+//   /* close menus on outside click */
 //   useEffect(() => {
-//     const onDocClick = (e) => { if (!menuRef.current) return; if (!menuRef.current.contains(e.target)) setMenuOpen(null); };
+//     const onDocClick = (e) => {
+//       if (chatMenuRef.current && !chatMenuRef.current.contains(e.target)) setChatMenuOpen(null);
+//       if (groupMenuRef.current && !groupMenuRef.current.contains(e.target)) setGroupMenuOpen(null);
+//     };
 //     document.addEventListener("click", onDocClick);
 //     return () => document.removeEventListener("click", onDocClick);
 //   }, []);
 
-//   const handleLogout = () => { setUser(null); navigate("/login"); };
+//   const handleLogout = () => {
+//     setUser(null);
+//     navigate("/login");
+//   };
 
 //   const highlightText = (text, query) => {
 //     if (!query) return text;
@@ -196,7 +407,7 @@
 //       .split(regex)
 //       .map((part, i) =>
 //         regex.test(part) ? (
-//           <span key={i} className="bg-yellow-400 text-black font-semibold rounded">
+//           <span key={i} className="bg-emerald-300/30 text-emerald-200 px-0.5 rounded">
 //             {part}
 //           </span>
 //         ) : (
@@ -205,7 +416,7 @@
 //       );
 //   };
 
-//   /* sort/filter (chats) */
+//   /* ---------- chats: sorting/filtering ---------- */
 //   const getLastActive = (c) => {
 //     const pid = c?.userDetails?._id;
 //     const p = pid ? lastPreviewMap[pid] : null;
@@ -215,45 +426,83 @@
 
 //   const filteredChats = useMemo(() => {
 //     const q = search.trim().toLowerCase();
-//     const list = allUsers;
-//     if (!q) return list;
-//     return list.filter((c) => (c?.userDetails?.name || "").toLowerCase().includes(q));
+//     if (!q) return allUsers;
+//     return allUsers.filter((c) => (c?.userDetails?.name || "").toLowerCase().includes(q));
 //   }, [allUsers, search]);
 
-//   const archived = useMemo(() => filteredChats.filter((c) => c?.isArchived), [filteredChats]);
-//   const notArchived = useMemo(() => filteredChats.filter((c) => !c?.isArchived), [filteredChats]);
+//   const archivedChats = useMemo(() => filteredChats.filter((c) => c?.isArchived), [filteredChats]);
+//   const notArchivedChats = useMemo(
+//     () => filteredChats.filter((c) => !c?.isArchived),
+//     [filteredChats]
+//   );
 
-//   const notArchivedSorted = useMemo(() => {
-//     const arr = [...notArchived];
+//   const notArchivedChatsSorted = useMemo(() => {
+//     const arr = [...notArchivedChats];
 //     arr.sort((a, b) => {
 //       if (a?.isPinned && !b?.isPinned) return -1;
 //       if (!a?.isPinned && b?.isPinned) return 1;
 //       return getLastActive(b) - getLastActive(a);
 //     });
 //     return arr;
-//   }, [notArchived, lastPreviewMap]);
+//   }, [notArchivedChats, lastPreviewMap]);
 
-//   const pinned = useMemo(() => notArchivedSorted.filter((c) => c?.isPinned), [notArchivedSorted]);
-//   const regular = useMemo(() => notArchivedSorted.filter((c) => !c?.isPinned), [notArchivedSorted]);
+//   const pinnedChats = useMemo(
+//     () => notArchivedChatsSorted.filter((c) => c?.isPinned),
+//     [notArchivedChatsSorted]
+//   );
+//   const regularChats = useMemo(
+//     () => notArchivedChatsSorted.filter((c) => !c?.isPinned),
+//     [notArchivedChatsSorted]
+//   );
 
-//   /* groups filter */
+//   /* ---------- groups: sorting/filtering ---------- */
 //   const filteredGroups = useMemo(() => {
 //     const q = search.trim().toLowerCase();
 //     if (!q) return groups;
 //     return groups.filter((g) => (g?.name || "").toLowerCase().includes(q));
 //   }, [groups, search]);
 
-//   /* row actions (chat) */
-//   const actionLabels = {
+//   const archivedGroups = useMemo(
+//     () => filteredGroups.filter((g) => g?.isArchived),
+//     [filteredGroups]
+//   );
+//   const notArchivedGroups = useMemo(
+//     () => filteredGroups.filter((g) => !g?.isArchived),
+//     [filteredGroups]
+//   );
+
+//   const groupsLastActive = (g) =>
+//     new Date(g?.preview?.time || g?.updatedAt || g?.createdAt || 0).getTime() || 0;
+
+//   const notArchivedGroupsSorted = useMemo(() => {
+//     const arr = [...notArchivedGroups];
+//     arr.sort((a, b) => {
+//       if (a?.isPinned && !b?.isPinned) return -1;
+//       if (!a?.isPinned && b?.isPinned) return 1;
+//       return groupsLastActive(b) - groupsLastActive(a);
+//     });
+//     return arr;
+//   }, [notArchivedGroups]);
+
+//   const pinnedGroups = useMemo(
+//     () => notArchivedGroupsSorted.filter((g) => g?.isPinned),
+//     [notArchivedGroupsSorted]
+//   );
+//   const regularGroups = useMemo(
+//     () => notArchivedGroupsSorted.filter((g) => !g?.isPinned),
+//     [notArchivedGroupsSorted]
+//   );
+
+//   /* ---------- actions: chats & groups (unchanged) ---------- */
+//   const chatActionLabels = {
 //     mute: { loading: "Muting chat…", successOn: "Chat muted", successOff: "Chat unmuted", error: "Failed to mute chat" },
 //     archive: { loading: "Archiving chat…", successOn: "Chat archived", successOff: "Chat unarchived", error: "Failed to archive chat" },
 //     pin: { loading: "Pinning chat…", successOn: "Chat pinned", successOff: "Chat unpinned", error: "Failed to pin chat" },
 //     delete: { loading: "Deleting chat…", successOn: "Chat deleted", error: "Failed to delete chat" },
 //   };
 
-//   const handleAction = async (chatId, action) => {
+//   const handleChatAction = async (chatId, action) => {
 //     const prev = allUsers;
-//     // optimistic update
 //     if (action === "delete") {
 //       setAllUsers((p) => p.filter((c) => c._id !== chatId));
 //     } else {
@@ -272,12 +521,11 @@
 //       );
 //     }
 
-//     const labels = actionLabels[action];
+//     const labels = chatActionLabels[action];
 //     const req =
 //       action === "delete"
-//         ? axios.delete(`${API_BASE}/${chatId}/delete`)
-//         : axios.put(`${API_BASE}/${chatId}/${action}`, {});
-
+//         ? axios.delete(`${CHAT_API_BASE}/${chatId}/delete`)
+//         : axios.put(`${CHAT_API_BASE}/${chatId}/${action}`, {});
 //     await toast.promise(
 //       req,
 //       {
@@ -290,32 +538,75 @@
 //           return "Done";
 //         },
 //         error: (err) => {
-//           setAllUsers(prev); // rollback
+//           setAllUsers(prev);
 //           return err?.response?.data?.message || labels.error || "Something went wrong";
 //         },
 //       },
-//       {
-//         style: {
-//           background: "#202c33",
-//           color: "#e9edef",
-//           borderRadius: "8px",
-//           fontSize: "14px",
-//           padding: "10px 14px",
-//         },
-//         success: { duration: 2000, icon: "✔️" },
-//         error: { duration: 2200, icon: "⚠️" },
-//         loading: { duration: 100000 },
-//       }
+//       { success: { duration: 2000 }, error: { duration: 2200 }, loading: { duration: 100000 } }
 //     );
-
-//   setMenuOpen(null);
+//     setChatMenuOpen(null);
 //   };
 
-//   /* chat row */
+//   const groupActionLabels = {
+//     mute: { loading: "Muting group…", successOn: "Group muted", successOff: "Group unmuted", error: "Failed to mute group" },
+//     archive: { loading: "Archiving group…", successOn: "Group archived", successOff: "Group unarchived", error: "Failed to archive group" },
+//     pin: { loading: "Pinning group…", successOn: "Group pinned", successOff: "Group unpinned", error: "Failed to pin group" },
+//     delete: { loading: "Deleting group…", successOn: "Group deleted", error: "Failed to delete group" },
+//   };
+
+//   const openArchivedIfArchiving = (action, wasArchived) => {
+//     if (action === "archive" && !wasArchived) setShowArchivedGroups(true);
+//   };
+
+//   const handleGroupAction = async (groupId, action) => {
+//     const prev = groups;
+//     const before = groups.find((g) => g._id === groupId);
+//     const wasArchived = !!before?.isArchived;
+
+//     if (action === "delete") {
+//       setGroups((p) => p.filter((g) => g._id !== groupId));
+//     } else {
+//       setGroups((p) =>
+//         p.map((g) =>
+//           g._id === groupId
+//             ? action === "mute"
+//               ? { ...g, isMuted: !g.isMuted }
+//               : action === "archive"
+//               ? { ...g, isArchived: !g.isArchived }
+//               : action === "pin"
+//               ? { ...g, isPinned: !g.isPinned }
+//               : g
+//             : g
+//         )
+//       );
+//       openArchivedIfArchiving(action, wasArchived);
+//     }
+
+//     const req =
+//       action === "delete"
+//         ? http.delete(`/api/groups/delete`, { data: { groupId } })
+//         : http.put(`/api/groups/${groupId}/${action}`, {});
+//     const labels = groupActionLabels[action];
+
+//     await toast.promise(
+//       req,
+//       {
+//         loading: labels.loading,
+//         success: (res) => (action === "delete" ? labels.successOn : res?.data?.message || "Done"),
+//         error: (err) => {
+//           setGroups(prev);
+//           return err?.response?.data?.message || labels.error || "Something went wrong";
+//         },
+//       },
+//       { success: { duration: 2000 }, error: { duration: 2200 }, loading: { duration: 100000 } }
+//     );
+//     setGroupMenuOpen(null);
+//   };
+
+//   /* ---------- rows ---------- */
 //   const ChatRow = ({ conv }) => {
 //     const pid = conv?.userDetails?._id;
 //     const last = pid ? lastPreviewMap[pid] : null;
-
 //     const isTypingActive = typingMap[pid] && Date.now() - typingMap[pid] < 3500;
 
 //     const preview = isTypingActive ? (
@@ -344,66 +635,65 @@
 
 //     return (
 //       <div
-//         className="relative flex items-center gap-3 px-4 py-3 border-b border-zinc-900 hover:bg-zinc-900/60 cursor-pointer"
+//         className="relative flex items-center gap-3 px-4 py-3 border-b border-zinc-900/60 hover:bg-zinc-900/50 cursor-pointer"
 //         onClick={() => {
 //           navigate(`/${pid}`);
 //           onSelectChat?.(conv.userDetails);
 //         }}
 //         onContextMenu={(e) => {
 //           e.preventDefault();
-//           setMenuOpen(menuOpen === conv._id ? null : conv._id);
+//           setChatMenuOpen(chatMenuOpen === conv._id ? null : conv._id);
 //         }}
 //       >
 //         <Avatar imageUrl={conv?.userDetails?.profilePic} name={conv?.userDetails?.name} />
-
 //         <div className="flex-1 min-w-0">
 //           <div className="flex items-center gap-2 min-w-0">
 //             <h3 className="text-zinc-200 font-medium truncate">
 //               {highlightText(conv?.userDetails?.name, search)}
 //             </h3>
-//             {conv?.isPinned && <Pin size={14} className="text-zinc-400 shrink-0" />}
-//             {conv?.isMuted && <BellOff size={14} className="text-zinc-400 shrink-0" />}
-//             {conv?.isArchived && <Archive size={14} className="text-zinc-400 shrink-0" />}
+//             {conv?.isPinned && <Pin size={14} className="text-emerald-400/70 shrink-0" />}
+//             {conv?.isMuted && <BellOff size={14} className="text-zinc-500 shrink-0" />}
+//             {conv?.isArchived && <Archive size={14} className="text-zinc-500 shrink-0" />}
 //           </div>
-
 //           <div className="text-xs text-zinc-500 flex items-center gap-2 min-w-0">
 //             <div className="flex items-center gap-1 min-w-0 truncate">{preview}</div>
 //           </div>
 //         </div>
-
 //         <div className="text-right pl-2">
 //           <div className="text-[10px] text-zinc-500">{last?.time ? fmtTime(last.time) : ""}</div>
 //           {!!conv?.unseenMsg && (
-//             <div className="mt-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-green-600 text-[10px] text-white">
+//             <div className="mt-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-emerald-600 text-[10px] text-white">
 //               {conv?.unseenMsg}
 //             </div>
 //           )}
 //         </div>
 
-//         {/* Row menu */}
-//         <div className="ml-2 relative z-50" ref={menuRef}>
+//         <div className="ml-2 relative z-50" ref={chatMenuRef}>
 //           <button
-//             className="p-1 rounded hover:bg-zinc-800"
-//             onClick={(e) => { e.stopPropagation(); setMenuOpen(menuOpen === conv._id ? null : conv._id); }}
+//             className="p-1 rounded hover:bg-zinc-800/70"
+//             onClick={(e) => {
+//               e.stopPropagation();
+//               setChatMenuOpen(chatMenuOpen === conv._id ? null : conv._id);
+//             }}
 //           >
 //             <EllipsisVertical className="text-zinc-400 hover:text-zinc-200" />
 //           </button>
 
-//           {menuOpen === conv._id && (
+//           {chatMenuOpen === conv._id && (
 //             <div
-//               className="absolute right-0 mt-2 bg-[#121418] rounded-lg shadow-lg border border-zinc-700 text-sm w-40 py-1"
+//               className="absolute right-0 mt-2 bg-[#0e1216] rounded-lg shadow-xl border border-zinc-800 text-sm w-40 py-1"
 //               onClick={(e) => e.stopPropagation()}
 //             >
-//               <button className="block w-full text-left px-4 py-2 hover:bg-zinc-800" onClick={() => handleAction(conv._id, "mute")}>
+//               <button className="block w-full text-left px-4 py-2 hover:bg-zinc-800" onClick={() => handleChatAction(conv._id, "mute")}>
 //                 {conv.isMuted ? "Unmute" : "Mute"}
 //               </button>
-//               <button className="block w-full text-left px-4 py-2 hover:bg-zinc-800" onClick={() => handleAction(conv._id, "archive")}>
+//               <button className="block w-full text-left px-4 py-2 hover:bg-zinc-800" onClick={() => handleChatAction(conv._id, "archive")}>
 //                 {conv.isArchived ? "Unarchive" : "Archive"}
 //               </button>
-//               <button className="block w-full text-left px-4 py-2 hover:bg-zinc-800" onClick={() => handleAction(conv._id, "pin")}>
+//               <button className="block w-full text-left px-4 py-2 hover:bg-zinc-800" onClick={() => handleChatAction(conv._id, "pin")}>
 //                 {conv.isPinned ? "Unpin" : "Pin"}
 //               </button>
-//               <button className="block w-full text-left px-4 py-2 hover:bg-red-600/20 text-red-300" onClick={() => handleAction(conv._id, "delete")}>
+//               <button className="block w-full text-left px-4 py-2 hover:bg-red-600/20 text-red-300" onClick={() => handleChatAction(conv._id, "delete")}>
 //                 Delete
 //               </button>
 //             </div>
@@ -413,68 +703,133 @@
 //     );
 //   };
 
-//   /* group row (compact) */
 //   const GroupRow = ({ g }) => {
-//     const count = groupUnread[g._id] || 0; // if you wire unread later
-//     const lastText = g?.lastMessage?.text || g?.lastMessage?.content || "";
-//     const lastTime = g?.lastMessage?.time || g?.updatedAt || g?.createdAt;
+//     const count = groupUnread[g._id] || 0;
+//     const { text: lastText, kind: lastKind, time: lastTime, prefix } = g.preview || {};
+
+//     const body =
+//       lastKind === "image" ? (
+//         <>
+//           <ImageIcon size={14} /> <span>Image</span>
+//         </>
+//       ) : lastKind === "video" ? (
+//         <>
+//           <Video size={14} /> <span>Video</span>
+//         </>
+//       ) : lastKind === "audio" ? (
+//         <>
+//           <Play size={14} /> <span>Audio</span>
+//         </>
+//       ) : lastKind === "file" ? (
+//         <>
+//           <FileText size={14} /> <span>File</span>
+//         </>
+//       ) : lastText ? (
+//         <span className="truncate">{lastText}</span>
+//       ) : (
+//         <span className="opacity-60">No messages yet</span>
+//       );
 
 //     return (
-//       <button
+//       <div
 //         key={g._id}
+//         className="relative w-full text-left px-4 py-3 border-b border-zinc-900/60 hover:bg-zinc-900/50 transition flex items-center gap-3"
 //         onClick={() => navigate(`/g/${g._id}`)}
-//         className="w-full text-left px-4 py-3 border-b border-zinc-900 hover:bg-zinc-900/60 transition"
+//         onContextMenu={(e) => {
+//           e.preventDefault();
+//           setGroupMenuOpen(groupMenuOpen === g._id ? null : g._id);
+//         }}
 //       >
-//         <div className="flex items-center gap-3">
-//           <img
-//             src={g.profilePic || "/group-placeholder.png"}
-//             alt=""
-//             className="w-10 h-10 rounded-full object-cover"
-//           />
-//           <div className="flex-1 min-w-0">
-//             <div className="flex items-center gap-2">
-//               <div className="font-medium truncate">{g.name}</div>
-//             </div>
-//             <div className="text-xs text-zinc-500 flex items-center gap-2">
-//               <span className="truncate">{lastText || "No messages yet"}</span>
-//             </div>
+//         <img
+//           src={g.profilePic || "/group-placeholder.png"}
+//           alt=""
+//           className="w-10 h-10 rounded-full object-cover ring-1 ring-emerald-500/20"
+//         />
+//         <div className="flex-1 min-w-0">
+//           <div className="flex items-center gap-2">
+//             <div className="font-medium truncate text-zinc-200">{g.name}</div>
+//             {g?.isPinned && <Pin size={14} className="text-emerald-400/70 shrink-0" />}
+//             {g?.isMuted && <BellOff size={14} className="text-zinc-500 shrink-0" />}
+//             {g?.isArchived && <Archive size={14} className="text-zinc-500 shrink-0" />}
 //           </div>
-//           <div className="text-right">
-//             <div className="text-[10px] text-zinc-500">
-//               {lastTime ? fmtTime(lastTime) : ""}
+//           <div className="text-xs text-zinc-500 flex items-center gap-2 min-w-0">
+//             <div className="flex items-center gap-1 min-w-0 truncate">
+//               {prefix ? <span className="text-zinc-400">{prefix}:</span> : null} {body}
 //             </div>
-//             {count > 0 && (
-//               <div className="mt-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-green-600 text-[10px]">
-//                 {count}
-//               </div>
-//             )}
 //           </div>
 //         </div>
-//       </button>
+//         <div className="text-right">
+//           <div className="text-[10px] text-zinc-500">{lastTime ? fmtTime(lastTime) : ""}</div>
+//           {count > 0 && (
+//             <div className="mt-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-emerald-600 text-[10px] text-white">
+//               {count}
+//             </div>
+//           )}
+//         </div>
+
+//         <div className="ml-2 relative z-50" ref={groupMenuRef}>
+//           <button
+//             className="p-1 rounded hover:bg-zinc-800/70"
+//             onClick={(e) => {
+//               e.stopPropagation();
+//               setGroupMenuOpen(groupMenuOpen === g._id ? null : g._id);
+//             }}
+//           >
+//             <EllipsisVertical className="text-zinc-400 hover:text-zinc-200" />
+//           </button>
+
+//           {groupMenuOpen === g._id && (
+//             <div
+//               className="absolute right-0 mt-2 bg-[#0e1216] rounded-lg shadow-xl border border-zinc-800 text-sm w-44 py-1"
+//               onClick={(e) => e.stopPropagation()}
+//             >
+//               <button className="block w-full text-left px-4 py-2 hover:bg-zinc-800" onClick={() => handleGroupAction(g._id, "mute")}>
+//                 {g.isMuted ? "Unmute group" : "Mute group"}
+//               </button>
+//               <button className="block w-full text-left px-4 py-2 hover:bg-zinc-800" onClick={() => handleGroupAction(g._id, "archive")}>
+//                 {g.isArchived ? "Unarchive group" : "Archive group"}
+//               </button>
+//               <button className="block w-full text-left px-4 py-2 hover:bg-zinc-800" onClick={() => handleGroupAction(g._id, "pin")}>
+//                 {g.isPinned ? "Unpin group" : "Pin group"}
+//               </button>
+//               <button className="block w-full text-left px-4 py-2 hover:bg-red-600/20 text-red-300" onClick={() => handleGroupAction(g._id, "delete")}>
+//                 <span className="inline-flex items-center gap-2"><Trash2 size={14}/> Delete group</span>
+//               </button>
+//             </div>
+//           )}
+//         </div>
+//       </div>
 //     );
 //   };
 
+//   /* ---------- render ---------- */
 //   return (
-//     <div className="w-full h-full grid grid-cols-[56px,1fr] bg-[#0b0d11] text-zinc-100">
-//       {/* Toaster */}
+//     <div className="w-full h-full grid grid-cols-[64px,1fr] bg-[#0a0f14] text-zinc-100">
 //       <Toaster
 //         position="top-center"
 //         toastOptions={{
 //           duration: 2000,
-//           style: { background: "#202c33", color: "#e9edef", borderRadius: "8px", fontSize: "14px" },
+//           style: {
+//             background: "#12161b",
+//             color: "#e9edef",
+//             borderRadius: "10px",
+//             border: "1px solid rgba(16,185,129,.25)",
+//             boxShadow: "0 8px 30px rgba(0,0,0,.35)",
+//             fontSize: "14px",
+//           },
 //         }}
 //       />
 
-//       {/* Left mini bar */}
-//       <div className="bg-[#0b0d11] border-r border-zinc-800 h-full py-5 flex flex-col items-center justify-between">
-//         <div className="space-y-1">
-//           <div className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-zinc-100 rounded">
+//       {/* Left bar */}
+//       <div className="bg-[#0b1016] border-r border-zinc-800/70 h-full py-5 flex flex-col items-center justify-between">
+//         <div className="space-y-2">
+//           <div title="Chats" className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-emerald-400 rounded-lg hover:bg-emerald-500/10 transition" onClick={() => setActiveTab("chats")}>
 //             <MessageCircle size={20} />
 //           </div>
-//           <div title="Add friend" onClick={() => setOpenSearchUser(true)} className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-zinc-100 rounded">
+//           <div title="Add friend" onClick={() => setOpenSearchUser(true)} className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-emerald-400 rounded-lg hover:bg-emerald-500/10 transition">
 //             <UserPlus size={20} />
 //           </div>
-//           <div title="Groups (right pane uses GroupsChatContainer)" onClick={() => setActiveTab("groups")} className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-zinc-100 rounded">
+//           <div title="Groups" onClick={() => setActiveTab("groups")} className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-emerald-400 rounded-lg hover:bg-emerald-500/10 transition">
 //             <Users size={20} />
 //           </div>
 //         </div>
@@ -483,26 +838,25 @@
 //           <button onClick={() => setEditProfile(true)}>
 //             <Avatar imageUrl={user?.profilePic} name={user?.name} userId={user?._id} />
 //           </button>
-//           <button title="Logout" onClick={handleLogout} className="text-zinc-300 hover:text-zinc-100">
+//           <button title="Logout" onClick={handleLogout} className="text-zinc-300 hover:text-rose-400 hover:bg-rose-500/10 p-2 rounded-lg transition">
 //             <LogOut size={20} />
 //           </button>
 //         </div>
 //       </div>
 
-//       {/* Main list panel */}
-//       <div className="w-full bg-[#0b0d11]">
+//       {/* Main list */}
+//       <div className="w-full bg-[#090d12]">
 //         {/* Header */}
-//         <div className="h-14 px-3 sm:px-4 border-b border-zinc-800 flex items-center justify-between">
-//           <h2 className="font-semibold">Chats</h2>
-//           <div className="flex gap-2 text-zinc-300">
-//             <SquarePlus size={18} className="cursor-pointer hover:text-zinc-100" />
-//             <EllipsisVertical size={18} className="cursor-pointer hover:text-zinc-100" />
-//           </div>
+//         <div className="h-14 px-4 border-b border-zinc-800/70 flex items-center justify-between">
+//           <h2 className="font-semibold tracking-wide text-zinc-200">
+//             {activeTab === "groups" ? "Groups" : "Chats"}
+//           </h2>
+//           <EllipsisVertical size={18} className="text-zinc-300" />
 //         </div>
 
-//         {/* Search */}
-//         <div className="px-3 py-3 border-b border-zinc-800">
-//           <div className="flex items-center gap-2 bg-[#0f1216] border border-zinc-700 rounded-xl px-3 py-2">
+//         {/* Search + Tabs */}
+//         <div className="px-4 py-3 border-b border-zinc-800/70">
+//           <div className="flex items-center gap-2 rounded-xl px-3 py-2 border border-zinc-700/60 bg-[#0f1419]">
 //             <Search size={16} className="text-zinc-500" />
 //             <input
 //               type="text"
@@ -513,20 +867,15 @@
 //             />
 //           </div>
 
-//           {/* Tabs under search */}
-//           <div className="mt-2 flex border-b border-zinc-800">
+//           <div className="mt-3 grid grid-cols-2 gap-2">
 //             <button
-//               className={`flex-1 py-2 text-sm font-medium ${
-//                 activeTab === "chats" ? "border-b-2 border-emerald-500 text-emerald-400" : "text-zinc-400"
-//               }`}
+//               className={`py-2 text-sm font-medium rounded-lg border ${activeTab === "chats" ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10" : "text-zinc-400 border-zinc-700/60 hover:bg-zinc-800/50"}`}
 //               onClick={() => setActiveTab("chats")}
 //             >
 //               Chats
 //             </button>
 //             <button
-//               className={`flex-1 py-2 text-sm font-medium ${
-//                 activeTab === "groups" ? "border-b-2 border-emerald-500 text-emerald-400" : "text-zinc-400"
-//               }`}
+//               className={`py-2 text-sm font-medium rounded-lg border ${activeTab === "groups" ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10" : "text-zinc-400 border-zinc-700/60 hover:bg-zinc-800/50"}`}
 //               onClick={() => setActiveTab("groups")}
 //             >
 //               Groups
@@ -534,38 +883,45 @@
 //           </div>
 //         </div>
 
-//         {/* Archived (only for chats tab) */}
-//         {activeTab === "chats" && archived.length > 0 && (
+//         {/* Archived (Chats) */}
+//         {activeTab === "chats" && archivedChats.length > 0 && (
 //           <button
-//             className="w-full flex items-center justify-between px-4 py-2 text-zinc-300 hover:bg-zinc-900/60 border-b border-zinc-900"
-//             onClick={() => setShowArchived((s) => !s)}
+//             className="w-full flex items-center justify-between px-4 py-2 text-zinc-300 hover:bg-zinc-900/60 border-b border-zinc-900/60"
+//             onClick={() => setShowArchivedChats((s) => !s)}
 //           >
 //             <div className="flex items-center gap-3">
 //               <Archive size={18} className="text-zinc-300" />
 //               <span>Archived</span>
-//               <span className="text-xs opacity-70">({archived.length})</span>
+//               <span className="text-xs opacity-70">({archivedChats.length})</span>
 //             </div>
-//             {showArchived ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+//             {showArchivedChats ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
 //           </button>
+//         )}
+//         {activeTab === "chats" && showArchivedChats && archivedChats.length > 0 && (
+//           <div className="divide-y divide-zinc-900/60">
+//             {archivedChats.map((c) => <ChatRow key={c?._id} conv={c} />)}
+//           </div>
 //         )}
 
 //         {/* Lists */}
-//         <div className="h-[calc(100vh-212px)] overflow-x-hidden overflow-y-auto pb-4">
+//         <div className="h-[calc(100vh-230px)] overflow-x-hidden overflow-y-auto pb-6">
 //           {activeTab === "chats" ? (
 //             <>
-//               {showArchived && archived.map((c) => <ChatRow key={c?._id} conv={c} />)}
-
-//               {pinned.length > 0 && (
-//                 <div className="px-4 pt-3 pb-1 text-xs uppercase tracking-wider text-zinc-500">Pinned</div>
+//               {pinnedChats.length > 0 && (
+//                 <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">Pinned</div>
 //               )}
-//               {pinned.map((c) => <ChatRow key={c?._id} conv={c} />)}
+//               <div className="divide-y divide-zinc-900/60">
+//                 {pinnedChats.map((c) => <ChatRow key={c?._id} conv={c} />)}
+//               </div>
 
-//               {pinned.length > 0 && regular.length > 0 && (
-//                 <div className="px-4 pt-3 pb-1 text-xs uppercase tracking-wider text-zinc-500">Chats</div>
+//               {pinnedChats.length > 0 && regularChats.length > 0 && (
+//                 <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">Chats</div>
 //               )}
-//               {regular.length > 0 ? (
-//                 regular.map((c) => <ChatRow key={c?._id} conv={c} />)
-//               ) : pinned.length === 0 && archived.length === 0 ? (
+//               {regularChats.length > 0 ? (
+//                 <div className="divide-y divide-zinc-900/60">
+//                   {regularChats.map((c) => <ChatRow key={c?._id} conv={c} />)}
+//                 </div>
+//               ) : pinnedChats.length === 0 && archivedChats.length === 0 ? (
 //                 <div className="mt-12 text-center text-zinc-400">
 //                   <ArrowUpLeft size={50} className="mx-auto text-zinc-600" />
 //                   <p className="text-lg">No chats found</p>
@@ -574,11 +930,44 @@
 //             </>
 //           ) : (
 //             <>
-//               {groupsLoading && <p className="p-3 text-zinc-400">Loading…</p>}
-//               {!groupsLoading && filteredGroups.length === 0 && (
-//                 <p className="p-3 text-zinc-500">No groups yet</p>
+//               {archivedGroups.length > 0 && (
+//                 <button
+//                   className="w-full flex items-center justify-between px-4 py-2 text-zinc-300 hover:bg-zinc-900/60 border-y border-zinc-900/60"
+//                   onClick={() => setShowArchivedGroups((s) => !s)}
+//                 >
+//                   <div className="flex items-center gap-3">
+//                     <Archive size={18} className="text-zinc-300" />
+//                     <span>Archived</span>
+//                     <span className="text-xs opacity-70">({archivedGroups.length})</span>
+//                   </div>
+//                   {showArchivedGroups ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+//                 </button>
 //               )}
-//               {filteredGroups.map((g) => <GroupRow key={g._id} g={g} />)}
+
+//               {showArchivedGroups && archivedGroups.length > 0 && (
+//                 <div className="divide-y divide-zinc-900/60">
+//                   {archivedGroups.map((g) => <GroupRow key={g._id} g={g} />)}
+//                 </div>
+//               )}
+
+//               {groupsLoading && <p className="p-4 text-zinc-400">Loading…</p>}
+//               {!groupsLoading && filteredGroups.length === 0 && (
+//                 <p className="p-4 text-zinc-500">No groups yet</p>
+//               )}
+
+//               {pinnedGroups.length > 0 && (
+//                 <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">Pinned</div>
+//               )}
+//               <div className="divide-y divide-zinc-900/60">
+//                 {pinnedGroups.map((g) => <GroupRow key={g._id} g={g} />)}
+//               </div>
+
+//               {pinnedGroups.length > 0 && regularGroups.length > 0 && (
+//                 <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">Groups</div>
+//               )}
+//               <div className="divide-y divide-zinc-900/60">
+//                 {regularGroups.map((g) => <GroupRow key={g._id} g={g} />)}
+//               </div>
 //             </>
 //           )}
 //         </div>
@@ -591,21 +980,30 @@
 // };
 
 // export default Side;
-
-
-
-
-import React, { useEffect, useMemo, useRef, useState } from "react"; 
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { GetSocket } from "../utils/Sockets";
 import {
-  ArrowUpLeft, EllipsisVertical, Image as ImageIcon, LogOut,
-  MessageCircle, /* SquarePlus (removed) */ UserPlus, Video, Search,
-  Pin, BellOff, Archive, ChevronDown, ChevronRight, FileText, Play, Users,
-  Sun, Moon, Trash2
+  ArrowUpLeft,
+  EllipsisVertical,
+  Image as ImageIcon,
+  LogOut,
+  MessageCircle,
+  UserPlus,
+  Video,
+  Search,
+  Pin,
+  BellOff,
+  Archive,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Play,
+  Users,
+  Trash2,
 } from "lucide-react";
 import Avatar from "./Avatar";
 import { useLocalStorage } from "@mantine/hooks";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import AddUser from "./AddUser";
 import EditProfile from "./EditProfile";
 import axios from "axios";
@@ -613,18 +1011,168 @@ import http from "../utils/http";
 import toast, { Toaster } from "react-hot-toast";
 
 const CHAT_API_BASE = "http://localhost:5000/api/chat";
-const GROUP_API_BASE = "/api/groups";
 
-/* helpers */
+/* ---------- helpers ---------- */
 const fmtTime = (d) => {
   try {
     const date = new Date(d);
-    return isNaN(date) ? "" : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  } catch { return ""; }
+    return isNaN(date)
+      ? ""
+      : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
+  }
 };
 
+const isOfficeOrPdf = (name = "") =>
+  /\.(pdf|docx?|pptx?|xlsx|csv|txt)(\?|$)/i.test(name);
+
+const pickUrl = (m = {}) =>
+  m.url ||
+  m.imageUrl ||
+  m.audioUrl ||
+  m.videoUrl ||
+  m.fileUrl ||
+  m.documentUrl ||
+  m.attachmentUrl ||
+  m.mediaUrl ||
+  m.path ||
+  null;
+
+const resolveType = (m = {}) => {
+  if (m.messageType) return m.messageType;
+  if (m.imageUrl) return "image";
+  if (m.audioUrl) return "audio";
+  if (m.videoUrl) return "video";
+  if (m.fileUrl || isOfficeOrPdf(m.fileName)) return "file";
+  const u = pickUrl(m);
+  if (u) {
+    if (/\/video\/upload\//.test(u)) return "video";
+    if (/\/raw\/upload\//.test(u) || isOfficeOrPdf(u)) return "file";
+    return "image";
+  }
+  return "text";
+};
+
+const getSenderInfo = (m = {}) => {
+  const id =
+    m?.sender?._id ??
+    m?.senderId ??
+    (typeof m?.msgByUser === "object" ? m?.msgByUser?._id : m?.msgByUser) ??
+    m?.user?._id ??
+    m?.userId ??
+    m?.from ??
+    null;
+
+  const name =
+    m?.sender?.name ??
+    m?.user?.name ??
+    m?.fromName ??
+    m?.senderName ??
+    m?.authorName ??
+    "";
+
+  return { id, name };
+};
+
+const normalizeMessage = (raw) => {
+  if (!raw) return null;
+  const m = raw.message || raw;
+  const createdAt = m.createdAt || m.timestamp || new Date().toISOString();
+  const type = resolveType(m);
+  const url = pickUrl(m);
+  const { id: senderId, name: senderName } = getSenderInfo(m);
+  return {
+    ...m,
+    _id: m._id || raw._id,
+    createdAt,
+    messageType: type,
+    url,
+    _senderId: senderId || null,
+    _senderName: senderName || "",
+  };
+};
+
+const buildPreviewFromMsg = (m, fallbackTime, currentUserId) => {
+  if (!m)
+    return {
+      text: "",
+      kind: "none",
+      time: fallbackTime || "",
+      senderId: null,
+      senderName: "",
+      prefix: "",
+    };
+  const n = normalizeMessage(m);
+  const text =
+    n?.translatedMessage ||
+    n?.message ||
+    n?.text ||
+    n?.content ||
+    n?.caption ||
+    "";
+  const kind = n?.messageType || "text";
+  const time = n?.createdAt || fallbackTime || "";
+  const senderId = n?._senderId || null;
+  const senderName = n?._senderName || "";
+
+  const prefix =
+    senderId && currentUserId && String(senderId) === String(currentUserId)
+      ? "You"
+      : senderName || "";
+
+  return { text, kind, time, senderId, senderName, prefix };
+};
+
+const extractGroupPreviewFromList = (g, currentUserId) => {
+  const lm = typeof g?.lastMessage === "object" ? g.lastMessage : null;
+  if (lm)
+    return buildPreviewFromMsg(
+      lm,
+      g?.updatedAt || g?.createdAt,
+      currentUserId
+    );
+
+  // Lightweight fields from backend (if present)
+  if (
+    g?.lastMessageText ||
+    g?.lastMessageType ||
+    g?.lastMessageAt ||
+    g?.lastMessageSenderId ||
+    g?.lastMessageSenderName
+  ) {
+    const time = g?.lastMessageAt || g?.updatedAt || g?.createdAt || "";
+    const kind = g?.lastMessageType || (g?.lastMessageText ? "text" : "none");
+    const senderId = g?.lastMessageSenderId || null;
+    const senderName = g?.lastMessageSenderName || "";
+    const prefix =
+      senderId && currentUserId && String(senderId) === String(currentUserId)
+        ? "You"
+        : senderName || "";
+    return {
+      text: g?.lastMessageText || "",
+      kind,
+      time,
+      senderId,
+      senderName,
+      prefix,
+    };
+  }
+
+  return {
+    text: "",
+    kind: "none",
+    time: g?.updatedAt || g?.createdAt || "",
+    senderId: null,
+    senderName: "",
+    prefix: "",
+  };
+};
+
+/* ---------- component ---------- */
 const Side = ({ onSelectChat }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useLocalStorage({ key: "userData", defaultValue: {} });
 
   const socket =
@@ -632,61 +1180,51 @@ const Side = ({ onSelectChat }) => {
       ? GetSocket()
       : GetSocket?.socket || GetSocket?.current || GetSocket) || null;
 
+  /* modals */
   const [openSearchUser, setOpenSearchUser] = useState(false);
   const [editProfile, setEditProfile] = useState(false);
-const [showArchived, setShowArchived] = useState(false);
 
-  // theme (persist + apply to <html>)
-  const [theme, setTheme] = useLocalStorage({ key: "theme", defaultValue: "dark" });
-  const isDark = theme === "dark";
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(isDark ? "dark" : "light");
-  }, [isDark]);
-  const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
+  /* tabs */
+  const [activeTab, setActiveTab] = useState("groups");
 
-  // tabs
-  const [activeTab, setActiveTab] = useState("chats"); // "chats" | "groups"
-
-  // chats state
+  /* chats state */
   const [allUsers, setAllUsers] = useState([]);
   const [typingMap, setTypingMap] = useState({});
-  const [lastPreviewMap, setLastPreviewMap] = useState({}); // { [peerId]: { text, kind, time } }
+  const [lastPreviewMap, setLastPreviewMap] = useState({});
 
-  // groups state
+  /* groups state */
   const [groups, setGroups] = useState([]);
   const [groupsLoading, setGroupsLoading] = useState(false);
-  const [groupUnread, setGroupUnread] = useState({}); // optional: if your API provides counts
+  const [groupUnread, setGroupUnread] = useLocalStorage({
+    key: "groupUnread",
+    defaultValue: {},
+  });
 
-  // common UI state
+  /* ui state */
   const [search, setSearch] = useState("");
-  const [menuOpen, setMenuOpen] = useState(null); // for chat-row menu
-  const [groupMenuOpen, setGroupMenuOpen] = useState(null); // for group-row menu
-  const menuRef = useRef(null);
+  const [chatMenuOpen, setChatMenuOpen] = useState(null);
+  const [groupMenuOpen, setGroupMenuOpen] = useState(null);
+  const [showArchivedChats, setShowArchivedChats] = useState(false);
+  const [showArchivedGroups, setShowArchivedGroups] = useState(false);
+
+  const chatMenuRef = useRef(null);
   const groupMenuRef = useRef(null);
 
-  /* ----- ask server for the latest thread per peer (for preview only) ----- */
+  /* ---------- sockets: 1:1 previews ---------- */
   const requestLastForPeer = (peerId) => {
     if (!socket || !peerId) return;
     socket.emit("msgPage", peerId);
   };
 
-  /* socket: conversations list (1:1) */
   useEffect(() => {
     if (!socket || !user?._id) return;
-
     socket.emit("side", user._id);
 
     const onConv = (data) => {
       const updated = (data || []).map((conv) => {
         const youAreSender = String(conv?.sender?._id) === String(user._id);
         const peer = youAreSender ? conv.receiver : conv.sender;
-        return {
-          ...conv,
-          userDetails: peer,
-          unseenMsg: conv.unseen,
-        };
+        return { ...conv, userDetails: peer, unseenMsg: conv.unseen };
       });
 
       setAllUsers((prev) => {
@@ -702,20 +1240,19 @@ const [showArchived, setShowArchived] = useState(false);
               }
             : c;
         });
-
-        // fetch last message preview for each peer if we don't have it yet
         next.forEach((c) => {
           const pid = c?.userDetails?._id;
           if (pid && !lastPreviewMap[pid]) requestLastForPeer(pid);
         });
-
         return next;
       });
     };
 
     const onTyping = ({ from, to, isTyping }) => {
       if (!from || String(to) !== String(user._id)) return;
-      setTypingMap((m) => (isTyping ? { ...m, [from]: Date.now() } : { ...m, [from]: 0 }));
+      setTypingMap((m) =>
+        isTyping ? { ...m, [from]: Date.now() } : { ...m, [from]: 0 }
+      );
     };
 
     const onMessage = (payload) => {
@@ -723,68 +1260,127 @@ const [showArchived, setShowArchived] = useState(false);
         const peerId = payload?.chatWith;
         const list = Array.isArray(payload?.original) ? payload.original : [];
         if (!peerId || list.length === 0) return;
-
         const last = list[list.length - 1] || {};
-        const time = last?.createdAt || last?.updatedAt || last?.time || "";
-
-        let text =
-          last?.translatedMessage ||
-          last?.text ||
-          last?.content ||
-          (typeof last?.message === "string" ? last?.message : "");
-
-        if (!text && Array.isArray(payload?.translated)) {
-          const t = payload.translated.find((t) => t?._id === last?._id);
-          if (t?.translatedMessage) text = t.translatedMessage;
-        }
-
-        const kind = last?.messageType ||
-          (last?.imageUrl ? "image" :
-           last?.videoUrl ? "video" :
-           last?.audioUrl ? "audio" :
-           last?.fileUrl  ? "file"  :
-           (text ? "text" : "none"));
-
-        setLastPreviewMap((m) => {
-          const prev = m[peerId];
-          if (prev && prev.time === time && prev.text === text && prev.kind === kind) return m;
-          return { ...m, [peerId]: { text, kind, time } };
-        });
+        const preview = buildPreviewFromMsg(last, undefined, user?._id);
+        setLastPreviewMap((m) => ({ ...m, [peerId]: preview }));
       } catch {}
     };
 
     socket.on("conv", onConv);
     socket.on("typing", onTyping);
     socket.on("message", onMessage);
-
     return () => {
       socket.off("conv", onConv);
       socket.off("typing", onTyping);
       socket.off("message", onMessage);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, user?._id, lastPreviewMap]);
 
-  /* groups: load when tab opens (or once) */
+  /* ---------- groups load + robust enrichment ---------- */
+  const fetchGroupLastMessage = async (groupId) => {
+    const tryGet = async (urlBuilder) => {
+      try {
+        const res = await http.get(urlBuilder(groupId));
+        return res?.data || null;
+      } catch {
+        return null;
+      }
+    };
+
+    let data =
+      (await tryGet((id) => `/api/groups/${id}/last`)) ||
+      (await tryGet((id) => `/api/groups/${id}/messages?limit=1`)) ||
+      (await tryGet((id) => `/api/messages?groupId=${id}&limit=1`)) ||
+      (await tryGet((id) => `/api/messages/group/${id}?limit=1`));
+
+    if (!data) return null;
+
+    const msg =
+      data.message ||
+      (Array.isArray(data.messages) && data.messages[0]) ||
+      data.lastMessage ||
+      data.result ||
+      null;
+
+    return msg || null;
+  };
+
   const loadGroups = async () => {
     try {
       setGroupsLoading(true);
       const { data } = await http.get("/api/groups");
-      const serverGroups = data?.groups || [];
-      // preserve local flags if already present
+      const list = data?.groups || [];
+
+      // 1) provisional previews
+      let next = list.map((g) => ({
+        ...g,
+        preview: extractGroupPreviewFromList(g, user?._id),
+      }));
+
       setGroups((prev) => {
         const byId = new Map(prev.map((g) => [g._id, g]));
-        return serverGroups.map((g) => {
+        return next.map((g) => {
           const local = byId.get(g._id);
-          return local
-            ? {
-                ...g,
-                isPinned: local.isPinned ?? g.isPinned,
-                isArchived: local.isArchived ?? g.isArchived,
-                isMuted: local.isMuted ?? g.isMuted,
-              }
-            : g;
+          return {
+            ...g,
+            isPinned: local?.isPinned ?? g.isPinned,
+            isArchived: local?.isArchived ?? g.isArchived,
+            isMuted: local?.isMuted ?? g.isMuted,
+          };
         });
       });
+
+      // 2) enrich where preview missing or lastMessage not embedded
+      const need = next.filter((g) => {
+        const p = g.preview || {};
+        const lastIsObject =
+          typeof g?.lastMessage === "object" && g?.lastMessage;
+        return (!p.text && (p.kind === "none" || p.kind === "text")) || !lastIsObject;
+      });
+
+      if (need.length) {
+        const results = await Promise.allSettled(
+          need.map(async (g) => {
+            let detail = null;
+            try {
+              const res = await http.get(`/api/groups/${g._id}`);
+              detail = res?.data?.group || res?.data || null;
+            } catch {}
+
+            let last =
+              (detail &&
+                typeof detail.lastMessage === "object" &&
+                detail.lastMessage) ||
+              (detail &&
+                Array.isArray(detail.messages) &&
+                detail.messages[detail.messages.length - 1]) ||
+              null;
+
+            if (!last) last = await fetchGroupLastMessage(g._id);
+
+            return { id: g._id, detail, last };
+          })
+        );
+
+        setGroups((curr) => {
+          const by = new Map(curr.map((g) => [g._id, g]));
+          results.forEach((r) => {
+            if (r.status !== "fulfilled") return;
+            const { id, last, detail } = r.value || {};
+            const old = by.get(id);
+            const preview = buildPreviewFromMsg(
+              last,
+              (detail && (detail.updatedAt || detail.createdAt)) ||
+                old?.updatedAt ||
+                old?.createdAt,
+              user?._id
+            );
+            by.set(id, { ...old, preview });
+          });
+          return Array.from(by.values());
+        });
+      }
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to load groups");
     } finally {
@@ -793,22 +1389,74 @@ const [showArchived, setShowArchived] = useState(false);
   };
 
   useEffect(() => {
-    if (activeTab === "groups" && groups.length === 0) {
-      loadGroups();
-    }
-  }, [activeTab]); // eslint-disable-line
+    if (activeTab === "groups" && groups.length === 0) loadGroups();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, user?._id]);
+
+  /* ---------- unread badges: increment on new group msgs ---------- */
+  useEffect(() => {
+    if (!socket || !user?._id) return;
+
+    const bump = (gid, fromId) => {
+      if (!gid) return;
+      // skip if I'm the sender
+      if (fromId && String(fromId) === String(user._id)) return;
+      // skip if group is currently open
+      if (location.pathname === `/g/${gid}`) return;
+      setGroupUnread((prev) => ({ ...prev, [gid]: (prev?.[gid] || 0) + 1 }));
+    };
+
+    const onReceiveSingle = (m) => {
+      const gid =
+        String(m?.groupId || m?.group || m?.group_id || m?.groupID || "");
+      const from =
+        String(m?.msgByUser?._id || m?.msgByUser || m?.sender || "");
+      bump(gid, from);
+    };
+
+    const onReceiveBatch = (payload) => {
+      const gid = String(payload?.groupId || "");
+      const list = Array.isArray(payload?.messages) ? payload.messages : [];
+      for (const m of list) {
+        const from =
+          String(m?.msgByUser?._id || m?.msgByUser || m?.sender || "");
+        bump(gid, from);
+      }
+    };
+
+    socket.on("receive-group-msg", onReceiveSingle);
+    socket.on("groupMessages", onReceiveBatch);
+    return () => {
+      socket.off("receive-group-msg", onReceiveSingle);
+      socket.off("groupMessages", onReceiveBatch);
+    };
+  }, [socket, user?._id, location.pathname, setGroupUnread]);
+
+  /* ---------- unread badges: clear when opening a group ---------- */
+  useEffect(() => {
+    const m = location.pathname.match(/^\/g\/([a-f0-9]{24})$/i);
+    if (!m) return;
+    const gid = m[1];
+    setGroupUnread((prev) => ({ ...prev, [gid]: 0 }));
+    socket?.emit("seenGroup", { groupId: gid, userId: user?._id });
+  }, [location.pathname, setGroupUnread, socket, user?._id]);
 
   /* close menus on outside click */
   useEffect(() => {
     const onDocClick = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(null);
-      if (groupMenuRef.current && !groupMenuRef.current.contains(e.target)) setGroupMenuOpen(null);
+      if (chatMenuRef.current && !chatMenuRef.current.contains(e.target))
+        setChatMenuOpen(null);
+      if (groupMenuRef.current && !groupMenuRef.current.contains(e.target))
+        setGroupMenuOpen(null);
     };
     document.addEventListener("click", onDocClick);
     return () => document.removeEventListener("click", onDocClick);
   }, []);
 
-  const handleLogout = () => { setUser(null); navigate("/login"); };
+  const handleLogout = () => {
+    setUser(null);
+    navigate("/login");
+  };
 
   const highlightText = (text, query) => {
     if (!query) return text;
@@ -818,7 +1466,10 @@ const [showArchived, setShowArchived] = useState(false);
       .split(regex)
       .map((part, i) =>
         regex.test(part) ? (
-          <span key={i} className={isDark ? "bg-yellow-400 text-black" : "bg-yellow-200 text-black"} style={{ borderRadius: 3 }}>
+          <span
+            key={i}
+            className="bg-emerald-300/30 text-emerald-200 px-0.5 rounded"
+          >
             {part}
           </span>
         ) : (
@@ -827,7 +1478,7 @@ const [showArchived, setShowArchived] = useState(false);
       );
   };
 
-  /* sort/filter (chats) */
+  /* ---------- chats: sorting/filtering ---------- */
   const getLastActive = (c) => {
     const pid = c?.userDetails?._id;
     const p = pid ? lastPreviewMap[pid] : null;
@@ -837,45 +1488,108 @@ const [showArchived, setShowArchived] = useState(false);
 
   const filteredChats = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const list = allUsers;
-    if (!q) return list;
-    return list.filter((c) => (c?.userDetails?.name || "").toLowerCase().includes(q));
+    if (!q) return allUsers;
+    return allUsers.filter((c) =>
+      (c?.userDetails?.name || "").toLowerCase().includes(q)
+    );
   }, [allUsers, search]);
 
-  const archived = useMemo(() => filteredChats.filter((c) => c?.isArchived), [filteredChats]);
-  const notArchived = useMemo(() => filteredChats.filter((c) => !c?.isArchived), [filteredChats]);
+  const archivedChats = useMemo(
+    () => filteredChats.filter((c) => c?.isArchived),
+    [filteredChats]
+  );
+  const notArchivedChats = useMemo(
+    () => filteredChats.filter((c) => !c?.isArchived),
+    [filteredChats]
+  );
 
-  const notArchivedSorted = useMemo(() => {
-    const arr = [...notArchived];
+  const notArchivedChatsSorted = useMemo(() => {
+    const arr = [...notArchivedChats];
     arr.sort((a, b) => {
       if (a?.isPinned && !b?.isPinned) return -1;
       if (!a?.isPinned && b?.isPinned) return 1;
       return getLastActive(b) - getLastActive(a);
     });
     return arr;
-  }, [notArchived, lastPreviewMap]);
+  }, [notArchivedChats, lastPreviewMap]);
 
-  const pinned = useMemo(() => notArchivedSorted.filter((c) => c?.isPinned), [notArchivedSorted]);
-  const regular = useMemo(() => notArchivedSorted.filter((c) => !c?.isPinned), [notArchivedSorted]);
+  const pinnedChats = useMemo(
+    () => notArchivedChatsSorted.filter((c) => c?.isPinned),
+    [notArchivedChatsSorted]
+  );
+  const regularChats = useMemo(
+    () => notArchivedChatsSorted.filter((c) => !c?.isPinned),
+    [notArchivedChatsSorted]
+  );
 
-  /* groups filter */
+  /* ---------- groups: sorting/filtering ---------- */
   const filteredGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return groups;
     return groups.filter((g) => (g?.name || "").toLowerCase().includes(q));
   }, [groups, search]);
 
-  /* row actions (chat) */
+  const archivedGroups = useMemo(
+    () => filteredGroups.filter((g) => g?.isArchived),
+    [filteredGroups]
+  );
+  const notArchivedGroups = useMemo(
+    () => filteredGroups.filter((g) => !g?.isArchived),
+    [filteredGroups]
+  );
+
+  const groupsLastActive = (g) =>
+    new Date(g?.preview?.time || g?.updatedAt || g?.createdAt || 0).getTime() ||
+    0;
+
+  const notArchivedGroupsSorted = useMemo(() => {
+    const arr = [...notArchivedGroups];
+    arr.sort((a, b) => {
+      if (a?.isPinned && !b?.isPinned) return -1;
+      if (!a?.isPinned && b?.isPinned) return 1;
+      return groupsLastActive(b) - groupsLastActive(a);
+    });
+    return arr;
+  }, [notArchivedGroups]);
+
+  const pinnedGroups = useMemo(
+    () => notArchivedGroupsSorted.filter((g) => g?.isPinned),
+    [notArchivedGroupsSorted]
+  );
+  const regularGroups = useMemo(
+    () => notArchivedGroupsSorted.filter((g) => !g?.isPinned),
+    [notArchivedGroupsSorted]
+  );
+
+  /* ---------- actions: chats & groups (unchanged) ---------- */
   const chatActionLabels = {
-    mute: { loading: "Muting chat…", successOn: "Chat muted", successOff: "Chat unmuted", error: "Failed to mute chat" },
-    archive: { loading: "Archiving chat…", successOn: "Chat archived", successOff: "Chat unarchived", error: "Failed to archive chat" },
-    pin: { loading: "Pinning chat…", successOn: "Chat pinned", successOff: "Chat unpinned", error: "Failed to pin chat" },
-    delete: { loading: "Deleting chat…", successOn: "Chat deleted", error: "Failed to delete chat" },
+    mute: {
+      loading: "Muting chat…",
+      successOn: "Chat muted",
+      successOff: "Chat unmuted",
+      error: "Failed to mute chat",
+    },
+    archive: {
+      loading: "Archiving chat…",
+      successOn: "Chat archived",
+      successOff: "Chat unarchived",
+      error: "Failed to archive chat",
+    },
+    pin: {
+      loading: "Pinning chat…",
+      successOn: "Chat pinned",
+      successOff: "Chat unpinned",
+      error: "Failed to pin chat",
+    },
+    delete: {
+      loading: "Deleting chat…",
+      successOn: "Chat deleted",
+      error: "Failed to delete chat",
+    },
   };
 
   const handleChatAction = async (chatId, action) => {
     const prev = allUsers;
-    // optimistic update
     if (action === "delete") {
       setAllUsers((p) => p.filter((c) => c._id !== chatId));
     } else {
@@ -899,50 +1613,75 @@ const [showArchived, setShowArchived] = useState(false);
       action === "delete"
         ? axios.delete(`${CHAT_API_BASE}/${chatId}/delete`)
         : axios.put(`${CHAT_API_BASE}/${chatId}/${action}`, {});
-
     await toast.promise(
       req,
       {
         loading: labels.loading,
         success: (res) => {
           if (action === "delete") return labels.successOn;
-          if (action === "mute") return res?.data?.isMuted ? labels.successOn : labels.successOff;
-          if (action === "archive") return res?.data?.isArchived ? labels.successOn : labels.successOff;
-          if (action === "pin") return res?.data?.isPinned ? labels.successOn : labels.successOff;
+          if (action === "mute")
+            return res?.data?.isMuted ? labels.successOn : labels.successOff;
+          if (action === "archive")
+            return res?.data?.isArchived
+              ? labels.successOn
+              : labels.successOff;
+          if (action === "pin")
+            return res?.data?.isPinned ? labels.successOn : labels.successOff;
           return "Done";
         },
         error: (err) => {
-          setAllUsers(prev); // rollback
-          return err?.response?.data?.message || labels.error || "Something went wrong";
+          setAllUsers(prev);
+          return (
+            err?.response?.data?.message ||
+            labels.error ||
+            "Something went wrong"
+          );
         },
       },
       {
-        style: {
-          background: isDark ? "#202c33" : "#f3f4f6",
-          color: isDark ? "#e9edef" : "#111827",
-          borderRadius: "8px",
-          fontSize: "14px",
-          padding: "10px 14px",
-        },
-        success: { duration: 2000, icon: "✔️" },
-        error: { duration: 2200, icon: "⚠️" },
+        success: { duration: 2000 },
+        error: { duration: 2200 },
         loading: { duration: 100000 },
       }
     );
-
-    setMenuOpen(null);
+    setChatMenuOpen(null);
   };
 
-  /* groups actions: pin/archive/mute/delete (optimistic) */
   const groupActionLabels = {
-    mute: { loading: "Muting group…", successOn: "Group muted", successOff: "Group unmuted", error: "Failed to mute group" },
-    archive: { loading: "Archiving group…", successOn: "Group archived", successOff: "Group unarchived", error: "Failed to archive group" },
-    pin: { loading: "Pinning group…", successOn: "Group pinned", successOff: "Group unpinned", error: "Failed to pin group" },
-    delete: { loading: "Deleting group…", successOn: "Group deleted", error: "Failed to delete group" },
+    mute: {
+      loading: "Muting group…",
+      successOn: "Group muted",
+      successOff: "Group unmuted",
+      error: "Failed to mute group",
+    },
+    archive: {
+      loading: "Archiving group…",
+      successOn: "Group archived",
+      successOff: "Group unarchived",
+      error: "Failed to archive group",
+    },
+    pin: {
+      loading: "Pinning group…",
+      successOn: "Group pinned",
+      successOff: "Group unpinned",
+      error: "Failed to pin group",
+    },
+    delete: {
+      loading: "Deleting group…",
+      successOn: "Group deleted",
+      error: "Failed to delete group",
+    },
+  };
+
+  const openArchivedIfArchiving = (action, wasArchived) => {
+    if (action === "archive" && !wasArchived) setShowArchivedGroups(true);
   };
 
   const handleGroupAction = async (groupId, action) => {
     const prev = groups;
+    const before = groups.find((g) => g._id === groupId);
+    const wasArchived = !!before?.isArchived;
+
     if (action === "delete") {
       setGroups((p) => p.filter((g) => g._id !== groupId));
     } else {
@@ -959,54 +1698,45 @@ const [showArchived, setShowArchived] = useState(false);
             : g
         )
       );
+      openArchivedIfArchiving(action, wasArchived);
     }
 
-    // Try conventional endpoints; adjust if your backend differs
-    const labels = groupActionLabels[action];
     const req =
       action === "delete"
-        ? axios.delete(`${GROUP_API_BASE}/delete`, { data: { groupId } }) // matches your GroupsChatContainer delete
-        : axios.put(`${GROUP_API_BASE}/${action}`, { groupId });
+        ? http.delete(`/api/groups/delete`, { data: { groupId } })
+        : http.put(`/api/groups/${groupId}/${action}`, {});
+    const labels = groupActionLabels[action];
 
     await toast.promise(
       req,
       {
         loading: labels.loading,
-        success: (res) => {
-          if (action === "delete") return labels.successOn;
-          // If backend returns flags, you could use them; otherwise we keep optimistic state
-          return (action === "mute" || action === "archive" || action === "pin")
-            ? (res?.data?.message || "Done")
-            : "Done";
-        },
+        success: (res) =>
+          action === "delete" ? labels.successOn : res?.data?.message || "Done",
         error: (err) => {
-          setGroups(prev); // rollback
-          return err?.response?.data?.message || labels.error || "Something went wrong";
+          setGroups(prev);
+          return (
+            err?.response?.data?.message ||
+            labels.error ||
+            "Something went wrong"
+          );
         },
       },
       {
-        style: {
-          background: isDark ? "#202c33" : "#f3f4f6",
-          color: isDark ? "#e9edef" : "#111827",
-          borderRadius: "8px",
-          fontSize: "14px",
-          padding: "10px 14px",
-        },
-        success: { duration: 2000, icon: "✔️" },
-        error: { duration: 2200, icon: "⚠️" },
+        success: { duration: 2000 },
+        error: { duration: 2200 },
         loading: { duration: 100000 },
       }
     );
-
     setGroupMenuOpen(null);
   };
 
-  /* chat row */
+  /* ---------- rows ---------- */
   const ChatRow = ({ conv }) => {
     const pid = conv?.userDetails?._id;
     const last = pid ? lastPreviewMap[pid] : null;
-
-    const isTypingActive = typingMap[pid] && Date.now() - typingMap[pid] < 3500;
+    const isTypingActive =
+      typingMap[pid] && Date.now() - typingMap[pid] < 3500;
 
     const preview = isTypingActive ? (
       <span className="text-emerald-400">typing…</span>
@@ -1032,72 +1762,92 @@ const [showArchived, setShowArchived] = useState(false);
       <span className="opacity-60">No messages yet</span>
     );
 
-    const rowHover = isDark ? "hover:bg-zinc-900/60" : "hover:bg-zinc-100";
-    const borderB = isDark ? "border-zinc-900" : "border-zinc-200";
-
     return (
       <div
-        className={`relative flex items-center gap-3 px-4 py-3 border-b ${borderB} ${rowHover} cursor-pointer`}
+        className="relative flex items-center gap-3 px-4 py-3 border-b border-zinc-900/60 hover:bg-zinc-900/50 cursor-pointer"
         onClick={() => {
           navigate(`/${pid}`);
           onSelectChat?.(conv.userDetails);
         }}
         onContextMenu={(e) => {
           e.preventDefault();
-          setMenuOpen(menuOpen === conv._id ? null : conv._id);
+          setChatMenuOpen(chatMenuOpen === conv._id ? null : conv._id);
         }}
       >
-        <Avatar imageUrl={conv?.userDetails?.profilePic} name={conv?.userDetails?.name} />
-
+        <Avatar
+          imageUrl={conv?.userDetails?.profilePic}
+          name={conv?.userDetails?.name}
+        />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
-            <h3 className={`font-medium truncate ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
+            <h3 className="text-zinc-200 font-medium truncate">
               {highlightText(conv?.userDetails?.name, search)}
             </h3>
-            {conv?.isPinned && <Pin size={14} className="text-zinc-400 shrink-0" />}
-            {conv?.isMuted && <BellOff size={14} className="text-zinc-400 shrink-0" />}
-            {conv?.isArchived && <Archive size={14} className="text-zinc-400 shrink-0" />}
+            {conv?.isPinned && (
+              <Pin size={14} className="text-emerald-400/70 shrink-0" />
+            )}
+            {conv?.isMuted && (
+              <BellOff size={14} className="text-zinc-500 shrink-0" />
+            )}
+            {conv?.isArchived && (
+              <Archive size={14} className="text-zinc-500 shrink-0" />
+            )}
           </div>
-
-          <div className={`text-xs flex items-center gap-2 min-w-0 ${isDark ? "text-zinc-500" : "text-zinc-600"}`}>
-            <div className="flex items-center gap-1 min-w-0 truncate">{preview}</div>
+          <div className="text-xs text-zinc-500 flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-1 min-w-0 truncate">
+              {preview}
+            </div>
           </div>
         </div>
-
         <div className="text-right pl-2">
-          <div className={`text-[10px] ${isDark ? "text-zinc-500" : "text-zinc-600"}`}>{last?.time ? fmtTime(last.time) : ""}</div>
+          <div className="text-[10px] text-zinc-500">
+            {last?.time ? fmtTime(last.time) : ""}
+          </div>
           {!!conv?.unseenMsg && (
-            <div className="mt-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-green-600 text-[10px] text-white">
+            <div className="mt-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-emerald-600 text-[10px] text-white">
               {conv?.unseenMsg}
             </div>
           )}
         </div>
 
-        {/* Row menu */}
-        <div className="ml-2 relative z-50" ref={menuRef}>
+        <div className="ml-2 relative z-50" ref={chatMenuRef}>
           <button
-            className={`p-1 rounded ${isDark ? "hover:bg-zinc-800" : "hover:bg-zinc-200"}`}
-            onClick={(e) => { e.stopPropagation(); setMenuOpen(menuOpen === conv._id ? null : conv._id); }}
+            className="p-1 rounded hover:bg-zinc-800/70"
+            onClick={(e) => {
+              e.stopPropagation();
+              setChatMenuOpen(chatMenuOpen === conv._id ? null : conv._id);
+            }}
           >
-            <EllipsisVertical className={`${isDark ? "text-zinc-400 hover:text-zinc-200" : "text-zinc-500 hover:text-zinc-700"}`} />
+            <EllipsisVertical className="text-zinc-400 hover:text-zinc-200" />
           </button>
 
-          {menuOpen === conv._id && (
+          {chatMenuOpen === conv._id && (
             <div
-              className={`absolute right-0 mt-2 rounded-lg shadow-lg border text-sm w-40 py-1
-                ${isDark ? "bg-[#121418] border-zinc-700" : "bg-white border-zinc-200"}`}
+              className="absolute right-0 mt-2 bg-[#0e1216] rounded-lg shadow-xl border border-zinc-800 text-sm w-40 py-1"
               onClick={(e) => e.stopPropagation()}
             >
-              <button className={`block w-full text-left px-4 py-2 ${isDark ? "hover:bg-zinc-800" : "hover:bg-zinc-100"}`} onClick={() => handleChatAction(conv._id, "mute")}>
+              <button
+                className="block w-full text-left px-4 py-2 hover:bg-zinc-800"
+                onClick={() => handleChatAction(conv._id, "mute")}
+              >
                 {conv.isMuted ? "Unmute" : "Mute"}
               </button>
-              <button className={`block w-full text-left px-4 py-2 ${isDark ? "hover:bg-zinc-800" : "hover:bg-zinc-100"}`} onClick={() => handleChatAction(conv._id, "archive")}>
+              <button
+                className="block w-full text-left px-4 py-2 hover:bg-zinc-800"
+                onClick={() => handleChatAction(conv._id, "archive")}
+              >
                 {conv.isArchived ? "Unarchive" : "Archive"}
               </button>
-              <button className={`block w-full text-left px-4 py-2 ${isDark ? "hover:bg-zinc-800" : "hover:bg-zinc-100"}`} onClick={() => handleChatAction(conv._id, "pin")}>
+              <button
+                className="block w-full text-left px-4 py-2 hover:bg-zinc-800"
+                onClick={() => handleChatAction(conv._id, "pin")}
+              >
                 {conv.isPinned ? "Unpin" : "Pin"}
               </button>
-              <button className={`block w-full text-left px-4 py-2 ${isDark ? "hover:bg-red-600/20 text-red-300" : "hover:bg-red-50 text-red-600"}`} onClick={() => handleChatAction(conv._id, "delete")}>
+              <button
+                className="block w-full text-left px-4 py-2 hover:bg-red-600/20 text-red-300"
+                onClick={() => handleChatAction(conv._id, "delete")}
+              >
                 Delete
               </button>
             </div>
@@ -1107,75 +1857,140 @@ const [showArchived, setShowArchived] = useState(false);
     );
   };
 
-  /* group row (compact) */
   const GroupRow = ({ g }) => {
     const count = groupUnread[g._id] || 0;
-    const lastText = g?.lastMessage?.text || g?.lastMessage?.content || "";
-    const lastTime = g?.lastMessage?.time || g?.updatedAt || g?.createdAt;
 
-    const rowHover = isDark ? "hover:bg-zinc-900/60" : "hover:bg-zinc-100";
-    const borderB = isDark ? "border-zinc-900" : "border-zinc-200";
+    // Prefer backend-provided fields; fall back to preview object
+    const lastKind = g.lastMessageType || g.preview?.kind || "none";
+    const lastText = g.lastMessageText || g.preview?.text || "";
+    const lastTime =
+      g.lastMessageAt || g.preview?.time || g.updatedAt || g.createdAt;
+
+    const senderId = g.lastMessageSenderId || g.preview?.senderId || null;
+    const senderName =
+      g.lastMessageSenderName || g.preview?.senderName || g.preview?.prefix || "";
+
+    const isYou =
+      senderId && user?._id && String(senderId) === String(user._id);
+    const prefix = isYou ? "You" : senderName;
+
+    const body =
+      lastKind === "image" ? (
+        <>
+          <ImageIcon size={14} /> <span>Image</span>
+        </>
+      ) : lastKind === "video" ? (
+        <>
+          <Video size={14} /> <span>Video</span>
+        </>
+      ) : lastKind === "audio" ? (
+        <>
+          <Play size={14} /> <span>Audio</span>
+        </>
+      ) : lastKind === "file" ? (
+        <>
+          <FileText size={14} /> <span>File</span>
+        </>
+      ) : lastText ? (
+        <span className="truncate">{lastText}</span>
+      ) : (
+        <span className="opacity-60">No messages yet</span>
+      );
 
     return (
       <div
         key={g._id}
-        className={`relative w-full text-left px-4 py-3 border-b ${borderB} ${rowHover} transition flex items-center gap-3`}
-        onClick={() => navigate(`/g/${g._id}`)}
-        onContextMenu={(e) => { e.preventDefault(); setGroupMenuOpen(groupMenuOpen === g._id ? null : g._id); }}
+        className="relative w-full text-left px-4 py-3 border-b border-zinc-900/60 hover:bg-zinc-900/50 transition flex items-center gap-3"
+        onClick={() => {
+          navigate(`/g/${g._id}`);
+          // clear badge immediately and mark seen
+          setGroupUnread((prev) => ({ ...prev, [g._id]: 0 }));
+          socket?.emit("seenGroup", { groupId: g._id, userId: user?._id });
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setGroupMenuOpen(groupMenuOpen === g._id ? null : g._id);
+        }}
       >
         <img
           src={g.profilePic || "/group-placeholder.png"}
           alt=""
-          className="w-10 h-10 rounded-full object-cover"
+          className="w-10 h-10 rounded-full object-cover ring-1 ring-emerald-500/20"
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <div className={`font-medium truncate ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>{g.name}</div>
-            {g?.isPinned && <Pin size={14} className="text-zinc-400 shrink-0" />}
-            {g?.isMuted && <BellOff size={14} className="text-zinc-400 shrink-0" />}
-            {g?.isArchived && <Archive size={14} className="text-zinc-400 shrink-0" />}
+            <div className="font-medium truncate text-zinc-200">{g.name}</div>
+            {g?.isPinned && (
+              <Pin size={14} className="text-emerald-400/70 shrink-0" />
+            )}
+            {g?.isMuted && (
+              <BellOff size={14} className="text-zinc-500 shrink-0" />
+            )}
+            {g?.isArchived && (
+              <Archive size={14} className="text-zinc-500 shrink-0" />
+            )}
           </div>
-          <div className={`text-xs flex items-center gap-2 ${isDark ? "text-zinc-500" : "text-zinc-600"}`}>
-            <span className="truncate">{lastText || "No messages yet"}</span>
+          <div className="text-xs text-zinc-500 flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-1 min-w-0 truncate">
+              {prefix ? (
+                <span className="text-zinc-400">{prefix}:</span>
+              ) : null}{" "}
+              {body}
+            </div>
           </div>
         </div>
         <div className="text-right">
-          <div className={`text-[10px] ${isDark ? "text-zinc-500" : "text-zinc-600"}`}>
+          <div className="text-[10px] text-zinc-500">
             {lastTime ? fmtTime(lastTime) : ""}
           </div>
           {count > 0 && (
-            <div className="mt-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-green-600 text-[10px] text-white">
+            <div className="mt-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-emerald-600 text-[10px] text-white">
               {count}
             </div>
           )}
         </div>
 
-        {/* Group row menu */}
         <div className="ml-2 relative z-50" ref={groupMenuRef}>
           <button
-            className={`p-1 rounded ${isDark ? "hover:bg-zinc-800" : "hover:bg-zinc-200"}`}
-            onClick={(e) => { e.stopPropagation(); setGroupMenuOpen(groupMenuOpen === g._id ? null : g._id); }}
+            className="p-1 rounded hover:bg-zinc-800/70"
+            onClick={(e) => {
+              e.stopPropagation();
+              setGroupMenuOpen(groupMenuOpen === g._id ? null : g._id);
+            }}
           >
-            <EllipsisVertical className={`${isDark ? "text-zinc-400 hover:text-zinc-200" : "text-zinc-500 hover:text-zinc-700"}`} />
+            <EllipsisVertical className="text-zinc-400 hover:text-zinc-200" />
           </button>
 
           {groupMenuOpen === g._id && (
             <div
-              className={`absolute right-0 mt-2 rounded-lg shadow-lg border text-sm w-44 py-1
-                ${isDark ? "bg-[#121418] border-zinc-700" : "bg-white border-zinc-200"}`}
+              className="absolute right-0 mt-2 bg-[#0e1216] rounded-lg shadow-xl border border-zinc-800 text-sm w-44 py-1"
               onClick={(e) => e.stopPropagation()}
             >
-              <button className={`block w-full text-left px-4 py-2 ${isDark ? "hover:bg-zinc-800" : "hover:bg-zinc-100"}`} onClick={() => handleGroupAction(g._id, "mute")}>
+              <button
+                className="block w-full text-left px-4 py-2 hover:bg-zinc-800"
+                onClick={() => handleGroupAction(g._id, "mute")}
+              >
                 {g.isMuted ? "Unmute group" : "Mute group"}
               </button>
-              <button className={`block w-full text-left px-4 py-2 ${isDark ? "hover:bg-zinc-800" : "hover:bg-zinc-100"}`} onClick={() => handleGroupAction(g._id, "archive")}>
+              <button
+                className="block w-full text-left px-4 py-2 hover:bg-zinc-800"
+                onClick={() => handleGroupAction(g._id, "archive")}
+              >
                 {g.isArchived ? "Unarchive group" : "Archive group"}
               </button>
-              <button className={`block w-full text-left px-4 py-2 ${isDark ? "hover:bg-zinc-800" : "hover:bg-zinc-100"}`} onClick={() => handleGroupAction(g._id, "pin")}>
+              <button
+                className="block w-full text-left px-4 py-2 hover:bg-zinc-800"
+                onClick={() => handleGroupAction(g._id, "pin")}
+              >
                 {g.isPinned ? "Unpin group" : "Pin group"}
               </button>
-              <button className={`block w-full text-left px-4 py-2 ${isDark ? "hover:bg-red-600/20 text-red-300" : "hover:bg-red-50 text-red-600"}`} onClick={() => handleGroupAction(g._id, "delete")}>
-                <span className="inline-flex items-center gap-2"><Trash2 size={14}/> Delete group</span>
+              <button
+                className="block w-full text-left px-4 py-2 hover:bg-red-600/20 text-red-300"
+                onClick={() => handleGroupAction(g._id, "delete")}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Trash2 size={14} /> Delete group
+                </span>
               </button>
             </div>
           )}
@@ -1184,105 +1999,108 @@ const [showArchived, setShowArchived] = useState(false);
     );
   };
 
-  // Theme-aware base classes
-  const bgMain = isDark ? "bg-[#0b0d11] text-zinc-100" : "bg-white text-zinc-900";
-  const bgSidebar = isDark ? "bg-[#0b0d11]" : "bg-zinc-50";
-  const borderMain = isDark ? "border-zinc-800" : "border-zinc-200";
-  const headerText = isDark ? "text-zinc-100" : "text-zinc-800";
-  const headerIcon = isDark ? "text-zinc-300 hover:text-zinc-100" : "text-zinc-600 hover:text-zinc-800";
-  const inputWrap = isDark
-    ? "bg-[#0f1216] border border-zinc-700"
-    : "bg-zinc-100 border border-zinc-300";
-  const inputText = isDark ? "text-zinc-300 placeholder-zinc-500" : "text-zinc-800 placeholder-zinc-400";
-
+  /* ---------- render ---------- */
   return (
-    <div className={`w-full h-full grid grid-cols-[56px,1fr] ${bgMain}`}>
-      {/* Toaster */}
+    <div className="w-full h-full grid grid-cols-[64px,1fr] bg-[#0a0f14] text-zinc-100">
       <Toaster
         position="top-center"
         toastOptions={{
           duration: 2000,
           style: {
-            background: isDark ? "#202c33" : "#f3f4f6",
-            color: isDark ? "#e9edef" : "#111827",
-            borderRadius: "8px",
-            fontSize: "14px"
+            background: "#12161b",
+            color: "#e9edef",
+            borderRadius: "10px",
+            border: "1px solid rgba(16,185,129,.25)",
+            boxShadow: "0 8px 30px rgba(0,0,0,.35)",
+            fontSize: "14px",
           },
         }}
       />
 
-      {/* Left mini bar */}
-      <div className={`${bgSidebar} border-r ${borderMain} h-full py-5 flex flex-col items-center justify-between`}>
-        <div className="space-y-1">
-          <div title="Chats" className={`w-12 h-12 grid place-items-center cursor-pointer ${headerIcon} rounded`} onClick={() => setActiveTab("chats")}>
+      {/* Left bar */}
+      <div className="bg-[#0b1016] border-r border-zinc-800/70 h-full py-5 flex flex-col items-center justify-between">
+        <div className="space-y-2">
+          <div
+            title="Chats"
+            className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-emerald-400 rounded-lg hover:bg-emerald-500/10 transition"
+            onClick={() => setActiveTab("chats")}
+          >
             <MessageCircle size={20} />
           </div>
-          <div title="Add friend" onClick={() => setOpenSearchUser(true)} className={`w-12 h-12 grid place-items-center cursor-pointer ${headerIcon} rounded`}>
+          <div
+            title="Add friend"
+            onClick={() => setOpenSearchUser(true)}
+            className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-emerald-400 rounded-lg hover:bg-emerald-500/10 transition"
+          >
             <UserPlus size={20} />
           </div>
-          <div title="Groups" onClick={() => setActiveTab("groups")} className={`w-12 h-12 grid place-items-center cursor-pointer ${headerIcon} rounded`}>
+          <div
+            title="Groups"
+            onClick={() => setActiveTab("groups")}
+            className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-emerald-400 rounded-lg hover:bg-emerald-500/10 transition"
+          >
             <Users size={20} />
           </div>
         </div>
 
         <div className="flex flex-col items-center gap-2">
           <button onClick={() => setEditProfile(true)}>
-            <Avatar imageUrl={user?.profilePic} name={user?.name} userId={user?._id} />
+            <Avatar
+              imageUrl={user?.profilePic}
+              name={user?.name}
+              userId={user?._id}
+            />
           </button>
-          <button title="Logout" onClick={handleLogout} className={headerIcon}>
+          <button
+            title="Logout"
+            onClick={handleLogout}
+            className="text-zinc-300 hover:text-rose-400 hover:bg-rose-500/10 p-2 rounded-lg transition"
+          >
             <LogOut size={20} />
           </button>
         </div>
       </div>
 
-      {/* Main list panel */}
-      <div className={`w-full ${bgSidebar}`}>
+      {/* Main list */}
+
+      <div className="w-full bg-[#090d12]">
         {/* Header */}
-        <div className={`h-14 px-3 sm:px-4 border-b ${borderMain} flex items-center justify-between`}>
-          <h2 className={`font-semibold ${headerText}`}>{activeTab === "groups" ? "Groups" : "Chats"}</h2>
-          <div className="flex gap-2 items-center">
-            {/* theme toggle */}
-            <button
-              title={isDark ? "Switch to light" : "Switch to dark"}
-              onClick={toggleTheme}
-              className={`cursor-pointer p-1 rounded ${headerIcon}`}
-            >
-              {isDark ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-            <EllipsisVertical size={18} className={`cursor-pointer ${headerIcon}`} />
-          </div>
+        <div className="h-14 px-4 border-b border-zinc-800/70 flex items-center justify-between">
+          <h2 className="font-semibold tracking-wide text-zinc-200">
+            {activeTab === "groups" ? "Groups" : "Chats"}
+          </h2>
+          <EllipsisVertical size={18} className="text-zinc-300" />
         </div>
 
         {/* Search + Tabs */}
-        <div className={`px-3 py-3 border-b ${borderMain}`}>
-          <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${inputWrap}`}>
-            <Search size={16} className={isDark ? "text-zinc-500" : "text-zinc-600"} />
+        <div className="px-4 py-3 border-b border-zinc-800/70">
+          <div className="flex items-center gap-2 rounded-xl px-3 py-2 border border-zinc-700/60 bg-[#0f1419]">
+            <Search size={16} className="text-zinc-500" />
             <input
               type="text"
               placeholder={activeTab === "groups" ? "Search groups..." : "Search chats..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className={`bg-transparent outline-none w-full text-sm ${inputText}`}
+              className="bg-transparent outline-none w-full text-sm text-zinc-300 placeholder-zinc-500"
             />
           </div>
 
-          {/* Tabs under search */}
-          <div className={`mt-2 flex border-b ${borderMain}`}>
+          <div className="mt-3 grid grid-cols-2 gap-2">
             <button
-              className={`flex-1 py-2 text-sm font-medium ${
+              className={`py-2 text-sm font-medium rounded-lg border ${
                 activeTab === "chats"
-                  ? "border-b-2 border-emerald-500 text-emerald-500"
-                  : isDark ? "text-zinc-400" : "text-zinc-500"
+                  ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10"
+                  : "text-zinc-400 border-zinc-700/60 hover:bg-zinc-800/50"
               }`}
               onClick={() => setActiveTab("chats")}
             >
               Chats
             </button>
             <button
-              className={`flex-1 py-2 text-sm font-medium ${
+              className={`py-2 text-sm font-medium rounded-lg border ${
                 activeTab === "groups"
-                  ? "border-b-2 border-emerald-500 text-emerald-500"
-                  : isDark ? "text-zinc-400" : "text-zinc-500"
+                  ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10"
+                  : "text-zinc-400 border-zinc-700/60 hover:bg-zinc-800/50"
               }`}
               onClick={() => setActiveTab("groups")}
             >
@@ -1291,58 +2109,120 @@ const [showArchived, setShowArchived] = useState(false);
           </div>
         </div>
 
-        {/* Archived (only for chats tab) */}
-        {activeTab === "chats" && archived.length > 0 && (
+        {/* Archived (Chats) */}
+        {activeTab === "chats" && archivedChats.length > 0 && (
           <button
-            className={`w-full flex items-center justify-between px-4 py-2 ${isDark ? "text-zinc-300 hover:bg-zinc-900/60" : "text-zinc-700 hover:bg-zinc-100"} border-b ${isDark ? "border-zinc-900" : "border-zinc-200"}`}
-            onClick={() => setShowArchived((s) => !s)}
+            className="w-full flex items-center justify-between px-4 py-2 text-zinc-300 hover:bg-zinc-900/60 border-b border-zinc-900/60"
+            onClick={() => setShowArchivedChats((s) => !s)}
           >
             <div className="flex items-center gap-3">
-              <Archive size={18} className={isDark ? "text-zinc-300" : "text-zinc-600"} />
+              <Archive size={18} className="text-zinc-300" />
               <span>Archived</span>
-              <span className="text-xs opacity-70">({archived.length})</span>
+              <span className="text-xs opacity-70">({archivedChats.length})</span>
             </div>
-            {showArchived ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+            {showArchivedChats ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
           </button>
+        )}
+        {activeTab === "chats" && showArchivedChats && archivedChats.length > 0 && (
+          <div className="divide-y divide-zinc-900/60">
+            {archivedChats.map((c) => (
+              <ChatRow key={c?._id} conv={c} />
+            ))}
+          </div>
         )}
 
         {/* Lists */}
-        <div className="h-[calc(100vh-212px)] overflow-x-hidden overflow-y-auto pb-4">
+        <div className="h-[calc(100vh-230px)] overflow-x-hidden overflow-y-auto pb-6">
           {activeTab === "chats" ? (
             <>
-              {showArchived && archived.map((c) => <ChatRow key={c?._id} conv={c} />)}
-
-              {pinned.length > 0 && (
-                <div className={`px-4 pt-3 pb-1 text-xs uppercase tracking-wider ${isDark ? "text-zinc-500" : "text-zinc-500"}`}>Pinned</div>
+              {pinnedChats.length > 0 && (
+                <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">
+                  Pinned
+                </div>
               )}
-              {pinned.map((c) => <ChatRow key={c?._id} conv={c} />)}
+              <div className="divide-y divide-zinc-900/60">
+                {pinnedChats.map((c) => (
+                  <ChatRow key={c?._id} conv={c} />
+                ))}
+              </div>
 
-              {pinned.length > 0 && regular.length > 0 && (
-                <div className={`px-4 pt-3 pb-1 text-xs uppercase tracking-wider ${isDark ? "text-zinc-500" : "text-zinc-500"}`}>Chats</div>
+              {pinnedChats.length > 0 && regularChats.length > 0 && (
+                <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">
+                  Chats
+                </div>
               )}
-              {regular.length > 0 ? (
-                regular.map((c) => <ChatRow key={c?._id} conv={c} />)
-              ) : pinned.length === 0 && archived.length === 0 ? (
-                <div className={`mt-12 text-center ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                  <ArrowUpLeft size={50} className={`mx-auto ${isDark ? "text-zinc-600" : "text-zinc-400"}`} />
+              {regularChats.length > 0 ? (
+                <div className="divide-y divide-zinc-900/60">
+                  {regularChats.map((c) => (
+                    <ChatRow key={c?._id} conv={c} />
+                  ))}
+                </div>
+              ) : pinnedChats.length === 0 && archivedChats.length === 0 ? (
+                <div className="mt-12 text-center text-zinc-400">
+                  <ArrowUpLeft size={50} className="mx-auto text-zinc-600" />
                   <p className="text-lg">No chats found</p>
                 </div>
               ) : null}
             </>
           ) : (
             <>
-              {groupsLoading && <p className={isDark ? "p-3 text-zinc-400" : "p-3 text-zinc-600"}>Loading…</p>}
-              {!groupsLoading && filteredGroups.length === 0 && (
-                <p className={isDark ? "p-3 text-zinc-500" : "p-3 text-zinc-600"}>No groups yet</p>
+              {archivedGroups.length > 0 && (
+                <button
+                  className="w-full flex items-center justify-between px-4 py-2 text-zinc-300 hover:bg-zinc-900/60 border-y border-zinc-900/60"
+                  onClick={() => setShowArchivedGroups((s) => !s)}
+                >
+                  <div className="flex items-center gap-3">
+                    <Archive size={18} className="text-zinc-300" />
+                    <span>Archived</span>
+                    <span className="text-xs opacity-70">({archivedGroups.length})</span>
+                  </div>
+                  {showArchivedGroups ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                </button>
               )}
-              {filteredGroups.map((g) => <GroupRow key={g._id} g={g} />)}
+
+              {showArchivedGroups && archivedGroups.length > 0 && (
+                <div className="divide-y divide-zinc-900/60">
+                  {archivedGroups.map((g) => (
+                    <GroupRow key={g._id} g={g} />
+                  ))}
+                </div>
+              )}
+
+              {groupsLoading && <p className="p-4 text-zinc-400">Loading…</p>}
+              {!groupsLoading && filteredGroups.length === 0 && (
+                <p className="p-4 text-zinc-500">No groups yet</p>
+              )}
+
+              {pinnedGroups.length > 0 && (
+                <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">
+                  Pinned
+                </div>
+              )}
+              <div className="divide-y divide-zinc-900/60">
+                {pinnedGroups.map((g) => (
+                  <GroupRow key={g._id} g={g} />
+                ))}
+              </div>
+
+              {pinnedGroups.length > 0 && regularGroups.length > 0 && (
+                <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">
+                  Groups
+                </div>
+              )}
+              <div className="divide-y divide-zinc-900/60">
+                {regularGroups.map((g) => (
+                  <GroupRow key={g._id} g={g} />
+                ))}
+              </div>
             </>
           )}
         </div>
       </div>
 
       {openSearchUser && <AddUser setOpenSearchUser={setOpenSearchUser} />}
-      {editProfile && <EditProfile setEditProfile={setEditProfile} user={user} setUser={setUser} />}
+      {editProfile && (
+        <EditProfile setEditProfile={setEditProfile} user={user} setUser={setUser} />
+      )}
     </div>
   );
 };

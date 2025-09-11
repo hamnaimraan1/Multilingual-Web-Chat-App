@@ -155,15 +155,100 @@ export const leaveGroup = async (req, res) => {
 };
 
 /* 7) Get my groups */
+// export const getMyGroups = async (req, res) => {
+//   try {
+//     const groups = await Group.find({ members: req.user._id })
+//       .populate("admins", "name email")
+//       .populate("members", "name email")
+//       .sort({ updatedAt: -1 });
+//     res.json({ groups });
+//   } catch (e) {
+//     res.status(500).json({ message: e.message });
+//   }
+// };
+/* 7) Get my groups (populate lastMessage + add lightweight fields) */
+/* 7) Get my groups (populate lastMessage + lightweight preview fields) */
 export const getMyGroups = async (req, res) => {
   try {
     const groups = await Group.find({ members: req.user._id })
-      .populate("admins", "name email")
-      .populate("members", "name email")
-      .sort({ updatedAt: -1 });
-    res.json({ groups });
+      .select("name profilePic updatedAt createdAt pinned muted archived lastMessage")
+      .populate({
+        path: "lastMessage",
+        // IMPORTANT: include all media URL fields so we can infer kind client-side
+        select:
+          "text message messageType createdAt msgByUser imageUrl videoUrl audioUrl fileUrl fileName fileSize",
+        populate: { path: "msgByUser", select: "name profilePic" },
+      })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    // If lastMessage isn't populated (null) or is not enough, backfill with a single query
+    const ensureLastFor = async (g) => {
+      if (g.lastMessage) return g;
+
+      const last = await Msg.findOne({ groupId: g._id })
+        .sort({ createdAt: -1 })
+        .select(
+          "text message messageType createdAt msgByUser imageUrl videoUrl audioUrl fileUrl fileName fileSize"
+        )
+        .populate({ path: "msgByUser", select: "name profilePic" })
+        .lean();
+
+      return { ...g, lastMessage: last || null };
+    };
+
+    const withLast = await Promise.all(groups.map(ensureLastFor));
+
+    // Build lightweight preview fields the frontend uses
+    const out = withLast.map((g) => {
+      const m = g.lastMessage;
+
+      // robust kind detection
+      const kind =
+        m?.messageType ||
+        (m?.imageUrl ? "image" :
+         m?.videoUrl ? "video" :
+         m?.audioUrl ? "audio" :
+         m?.fileUrl  ? "file"  :
+         (m ? "text" : "none"));
+
+      // robust text extraction (only for text messages)
+      const text =
+        kind === "text"
+          ? (m?.text || m?.message || "")
+          : ""; // leave empty for media so the UI shows "Image/Video/File"
+
+      return {
+        ...g,
+        lastMessageText: text,
+        lastMessageType: kind,
+        lastMessageAt: m?.createdAt || g.updatedAt || g.createdAt,
+        lastMessageSenderId: m?.msgByUser?._id || null,
+        lastMessageSenderName: m?.msgByUser?.name || "",
+      };
+    });
+
+    return res.json({ groups: out });
   } catch (e) {
-    res.status(500).json({ message: e.message });
+    return res.status(500).json({ message: e.message });
+  }
+};
+
+/* X) Get last message of a group (fallback for client enrichment) */
+export const getGroupLastMessage = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    // NOTE: your message model uses "groupId" (not "group") in getGroupDetails,
+    // so we query by { groupId } here too.
+    const last = await Msg.findOne({ groupId })
+      .sort({ createdAt: -1 })
+      .select("message messageType createdAt msgByUser imageUrl videoUrl audioUrl fileUrl fileName")
+      .populate({ path: "msgByUser", select: "name profilePic" })
+      .lean();
+
+    return res.json({ message: last || null });
+  } catch (e) {
+    return res.status(500).json({ message: e.message });
   }
 };
 

@@ -691,8 +691,11 @@ io.on("connect", async (socket) => {
       const saved = await msgModel.create(doc);
 
       // Update group's last message pointer
-      await Group.findByIdAndUpdate(data.groupId, { lastMessage: saved._id });
-
+await Group.findByIdAndUpdate(
+  data.groupId,
+  { lastMessage: saved._id, updatedAt: saved.createdAt },
+  { new: false }
+);
       // Normalized payload that ALWAYS carries fileName/size/url
       const savedMessage = normalizeMsgForClient(saved, {
         url: incomingUrl,
