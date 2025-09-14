@@ -75,10 +75,10 @@ export const sendOtp = catchAsync(async (req, res) => {
 
   try {
     const info = await sendOtpEmail({ to: email, code });
-    console.log(`🔑 OTP code for ${email}: ${code}`);
+    console.log(` OTP code for ${email}: ${code}`);
     return res.status(200).json({ success: true, message: "OTP sent" });
   } catch (err) {
-    console.error("❌ sendOtpEmail failed:", err.message);
+    console.error(" sendOtpEmail failed:", err.message);
     return res.status(500).json({ message: "Failed to send OTP email", error: true });
   }
 });
@@ -117,6 +117,6 @@ export const verifyOtp = catchAsync(async (req, res) => {
   }
 
   await rec.deleteOne();
-  console.log(`✅ OTP verified for ${email}`);
+  console.log(` OTP verified for ${email}`);
   return res.status(200).json({ success: true, message: "OTP verified" });
 });
