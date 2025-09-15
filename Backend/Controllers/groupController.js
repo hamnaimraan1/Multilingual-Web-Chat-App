@@ -361,9 +361,18 @@ import Msg from "../Models/msgModel.js";
 import Pref from "../Models/prefModel.js";
 
 /* ---------- helpers ---------- */
+// const toStr = (id) => id?.toString?.() || String(id || "");
+// const isAdmin = (group, userId) => (group.admins || []).some((id) => toStr(id) === toStr(userId));
+// const isMember = (group, userId) => (group.members || []).some((id) => toStr(id) === toStr(userId));
+// // helpers (top of controller)
+// helpers (replace the old toStr/isAdmin/isMember)
 const toStr = (id) => id?.toString?.() || String(id || "");
-const isAdmin = (group, userId) => (group.admins || []).some((id) => toStr(id) === toStr(userId));
-const isMember = (group, userId) => (group.members || []).some((id) => toStr(id) === toStr(userId));
+const pickId = (x) => (x && (x._id || x.id)) ? (x._id || x.id) : x;
+const sameId = (a, b) => toStr(pickId(a)) === toStr(pickId(b));
+
+const isAdmin  = (group, userId) => (group.admins  || []).some((x) => sameId(x, userId));
+const isMember = (group, userId) => (group.members || []).some((x) => sameId(x, userId));
+
 
 const requireOwner = (req, res) => {
   const me = req?.user?._id;
@@ -404,26 +413,31 @@ const mergeGroupWithPrefs = (groups, prefMapById) =>
   });
 
 /* 1) Create Group */
+// controllers/groups.js  (createGroup)
 export const createGroup = async (req, res) => {
   try {
     const { name, members = [], profilePic = "" } = req.body;
     const me = req.user._id;
 
-    const uniqueMembers = Array.from(new Set([...members.map(String), String(me)]));
+    // Creator FIRST, then the rest (deduped)
+    const uniqueMembers = Array.from(
+      new Set([String(me), ...(members || []).map(String)])
+    );
 
     const group = await Group.create({
       name: name?.trim(),
       createdBy: me,
-      admins: [me],
-      members: uniqueMembers,
+      admins: [me],           // ← force creator as only admin
+      members: uniqueMembers, // ← creator is index 0
       profilePic,
     });
 
-    res.status(201).json({ success: true, group });
+    return res.status(201).json({ success: true, group });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 /* 2) Update Group (name / profilePic) */
 export const updateGroup = async (req, res) => {
@@ -556,7 +570,11 @@ export const getMyGroups = async (req, res) => {
     const me = requireOwner(req, res);
     if (!me) return;
 
-    const groups = await Group.find({ members: me })
+    // const groups = await Group.find({ members: me })
+    // show groups where I'm a member, an admin, or the creator
+   const groups = await Group.find({
+     $or: [{ members: me }, { admins: me }, { createdBy: me }],
+  })
       .select("name profilePic updatedAt createdAt lastMessage") // group-level flags removed (we use Pref)
       .populate({
         path: "lastMessage",
