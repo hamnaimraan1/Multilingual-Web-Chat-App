@@ -1,4 +1,6 @@
 
+
+
 // import React, { useEffect, useMemo, useRef, useState } from "react"; 
 // import { GetSocket } from "../utils/Sockets";
 // import {
@@ -161,55 +163,6 @@
 // };
 
 // /**
-//  * Quick check from the *list* or *detail* payload.
-//  * Returns: "yes" | "no" | "unknown"
-//  */
-// // const membershipFromList = (g, userId) => {
-// //   if (!g || !userId) return "unknown";
-// //   const me = String(userId);
-
-// //   // Explicit boolean from server (if present)
-// //   if (typeof g.isMember === "boolean") return g.isMember ? "yes" : "no";
-
-// //   // Owner / Admin implies member
-// //   const ownerId = asId(g.owner) || asId(g.ownerId);
-// //   if (ownerId && String(ownerId) === me) return "yes";
-
-// //   const admins = toIdSet(g.admins || g.adminIds);
-// //   if (admins.has(me)) return "yes";
-
-// //   // Common fields
-// //   const sets = [
-// //     toIdSet(g.members),
-// //     toIdSet(g.memberIds),
-// //     toIdSet(g.participants),
-// //     toIdSet(g.userIds),
-// //     toIdSet(g.users),
-// //     toIdSet(g.currentMembers),
-// //   ];
-// //   if (sets.some((S) => S.has(me))) return "yes";
-
-// //   // Membership objects with status/role (if present)
-// //   if (Array.isArray(g.memberships || g.memberList || g.membership)) {
-// //     const arr = g.memberships || g.memberList || g.membership;
-// //     let sawSelf = false;
-// //     for (const m of arr) {
-// //       const mid = String(asId(m?.user) || m?.userId || m?._id || "");
-// //       if (mid !== me) continue;
-// //       sawSelf = true;
-// //       const status = String(m?.status || m?.state || "").toLowerCase();
-// //       const role = String(m?.role || "").toLowerCase();
-// //       if (/(left|removed|banned|blocked|past|former)/.test(status) || role === "past") return "no";
-// //       return "yes";
-// //     }
-// //     // If list of memberships is present but self is absent, likely not a member
-// //     if (arr.length > 0) return "no";
-// //   }
-
-// //   // Unclear from payload
-// //   return "unknown";
-// // };
-// /**
 //  * Decide membership from LIST or DETAIL payloads.
 //  * Returns: "yes" | "no" | "unknown"
 //  */
@@ -227,10 +180,8 @@
 //     return s;
 //   };
 
-//   // 0) Explicit boolean from API
 //   if (typeof g.isMember === "boolean") return g.isMember ? "yes" : "no";
 
-//   // 1) Creator / Owner synonyms
 //   const creatorLike =
 //     asId(g.owner) ||
 //     asId(g.ownerId) ||
@@ -240,7 +191,6 @@
 //     asId(g.creatorId);
 //   if (creatorLike && String(creatorLike) === me) return "yes";
 
-//   // 2) Admin/Moderator synonyms
 //   const adminSets = [
 //     toIdSet(g.admins),
 //     toIdSet(g.adminIds),
@@ -253,7 +203,6 @@
 //   ];
 //   if (adminSets.some((S) => S.has(me))) return "yes";
 
-//   // 3) Member/Participant synonyms
 //   const memberSets = [
 //     toIdSet(g.members),
 //     toIdSet(g.memberIds),
@@ -265,7 +214,6 @@
 //   ];
 //   if (memberSets.some((S) => S.has(me))) return "yes";
 
-//   // 4) Role/status object lists
 //   const objLists =
 //     g.memberships || g.memberList || g.membership || g.roles || g.userRoles || g.participantMeta;
 //   if (Array.isArray(objLists)) {
@@ -279,11 +227,9 @@
 //       if (/(left|removed|banned|blocked|past|former|revoked|declined)/.test(status)) return "no";
 //       if (/(owner|creator|admin|moderator|member|participant)/.test(role) || !role) return "yes";
 //     }
-//     // If we saw a list but never saw myself, it's likely "no"
 //     if (sawAny) return "no";
 //   }
 
-//   // 5) Sometimes API returns a singular userRole on the group
 //   const userRole = String(g.userRole || g.myRole || "").toLowerCase();
 //   if (/(owner|creator|admin|moderator|member|participant)/.test(userRole)) return "yes";
 //   if (/(past|former|removed|left|banned|blocked)/.test(userRole)) return "no";
@@ -302,6 +248,21 @@
 //     (typeof GetSocket === "function"
 //       ? GetSocket()
 //       : GetSocket?.socket || GetSocket?.current || GetSocket) || null;
+
+//   /* --- Mobile viewport height fix --- */
+//   useEffect(() => {
+//     const setVh = () => {
+//       const vh = window.innerHeight * 0.01;
+//       document.documentElement.style.setProperty("--vh", `${vh}px`);
+//     };
+//     setVh();
+//     window.addEventListener("resize", setVh);
+//     window.addEventListener("orientationchange", setVh);
+//     return () => {
+//       window.removeEventListener("resize", setVh);
+//       window.removeEventListener("orientationchange", setVh);
+//     };
+//   }, []);
 
 //   /* modals */
 //   const [openSearchUser, setOpenSearchUser] = useState(false);
@@ -448,44 +409,45 @@
 //         };
 //       });
 
-//       // Decide membership for each group.
 //       const decisions = await Promise.all(
 //         normalized.map(async (g) => {
 //           const hint = membershipFromList(g, user?._id);
 //           if (hint === "yes") return { ...g, isMember: true };
 //           if (hint === "no") return { ...g, isMember: false };
 
-//           // Unknown => fetch details to verify; treat failures/ambiguity as not a member (fail-closed).
 //           try {
 //             const { data: det } = await http.get(`/api/groups/${g._id}`);
 //             const full = det?.group || det || {};
 //             const finalHint = membershipFromList(full, user?._id);
 //             return { ...g, isMember: finalHint === "yes" };
 //           } catch {
-//             // return { ...g, isMember: false };
 //             const iAmCreatorOrAdmin =
-//     String(
-//       (g.owner && (g.owner._id || g.owner.id || g.owner)) ||
-//       g.ownerId || g.createdBy || g.createdById || g.creator || g.creatorId || ""
-//     ) === String(user?._id || "") ||
-//     membershipFromList({ groupAdmins: g.groupAdmins, adminIds: g.adminIds, admins: g.admins }, user?._id) === "yes";
+//               String(
+//                 (g.owner && (g.owner._id || g.owner.id || g.owner)) ||
+//                   g.ownerId ||
+//                   g.createdBy ||
+//                   g.createdById ||
+//                   g.creator ||
+//                   g.creatorId ||
+//                   ""
+//               ) === String(user?._id || "") ||
+//               membershipFromList({ groupAdmins: g.groupAdmins, adminIds: g.adminIds, admins: g.admins }, user?._id) ===
+//                 "yes";
 
-//   return { ...g, isMember: iAmCreatorOrAdmin };
+//             return { ...g, isMember: iAmCreatorOrAdmin };
 //           }
 //         })
 //       );
 
-//    // Always include groups you created or admin
-//  const mine = decisions.filter((g) => {
-//    if (g.isMember) return true;
-//    const me = String(user?._id || "");
-//    const ownerId = String(g.owner?._id || g.owner || g.ownerId || g.createdBy || g.creator || "");
-//    if (ownerId && ownerId === me) return true;
-//  return false;
-//  });
-//  setGroups(mine);
+//       const mine = decisions.filter((g) => {
+//         if (g.isMember) return true;
+//         const me = String(user?._id || "");
+//         const ownerId = String(g.owner?._id || g.owner || g.ownerId || g.createdBy || g.creator || "");
+//         if (ownerId && ownerId === me) return true;
+//         return false;
+//       });
+//       setGroups(mine);
 
-//       // cleanup stray unread counters for groups not shown
 //       setGroupUnread((prev) => {
 //         const keep = new Set(mine.map((g) => String(g._id)));
 //         const next = { ...prev };
@@ -505,75 +467,66 @@
 //   useEffect(() => {
 //     if (activeTab === "groups") loadGroups();
 //   }, [activeTab, location.pathname, location.search]);
-// useEffect(() => {
-//   // Accept optimistic updates from the group composer (or anywhere else)
-//   const onCreated = (e) => {
-//     const g = e?.detail?.group || e?.detail || null;
-//     if (!g) return;
 
-//     // Normalize like loadGroups does
-//     const isPinned   = g.isPinned   ?? g.pinned   ?? false;
-//     const isMuted    = g.isMuted    ?? g.muted    ?? false;
-//     const isArchived = g.isArchived ?? g.archived ?? false;
+//   useEffect(() => {
+//     const onCreated = (e) => {
+//       const g = e?.detail?.group || e?.detail || null;
+//       if (!g) return;
 
-//     const normalized = {
-//       ...g,
-//       preview: extractGroupPreviewFromList(g, user?._id),
-//       isPinned: !!isPinned,
-//       isMuted: !!isMuted,
-//       isArchived: !!isArchived,
-//       isMember: true, // creator is member
+//       const isPinned   = g.isPinned   ?? g.pinned   ?? false;
+//       const isMuted    = g.isMuted    ?? g.muted    ?? false;
+//       const isArchived = g.isArchived ?? g.archived ?? false;
+
+//       const normalized = {
+//         ...g,
+//         preview: extractGroupPreviewFromList(g, user?._id),
+//         isPinned: !!isPinned,
+//         isMuted: !!isMuted,
+//         isArchived: !!isArchived,
+//         isMember: true,
+//       };
+
+//       setGroups((prev) => {
+//         const id = String(g._id || "");
+//         const idx = prev.findIndex((x) => String(x._id) === id);
+//         if (idx === -1) return [normalized, ...prev];
+//         const copy = [...prev];
+//         copy[idx] = { ...copy[idx], ...normalized };
+//         return copy;
+//       });
+
+//       setGroupUnread((prev) => ({ ...prev, [g._id]: 0 }));
+//       loadGroups();
 //     };
 
-//     // Insert/update in current list immediately
-//     setGroups((prev) => {
-//       const id = String(g._id || "");
-//       const idx = prev.findIndex((x) => String(x._id) === id);
-//       if (idx === -1) return [normalized, ...prev];
-//       const copy = [...prev];
-//       copy[idx] = { ...copy[idx], ...normalized };
-//       return copy;
-//     });
+//     const onJoined = () => loadGroups();
 
-//     // Clear unread counter for the new group (if any)
-//     setGroupUnread((prev) => ({ ...prev, [g._id]: 0 }));
+//     window.addEventListener("group:created", onCreated);
+//     window.addEventListener("group:joined", onJoined);
 
-//     // Then do a full refresh so lastMessage/flags are accurate
-//     loadGroups();
-//   };
+//     try {
+//       if (socket) {
+//         const sockRefresh = () => loadGroups();
+//         socket.on?.("group:created", sockRefresh);
+//         socket.on?.("group:joined", sockRefresh);
+//         socket.on?.("group:updated", sockRefresh);
+//         return () => {
+//           window.removeEventListener("group:created", onCreated);
+//           window.removeEventListener("group:joined", onJoined);
+//           socket.off?.("group:created", sockRefresh);
+//           socket.off?.("group:joined", sockRefresh);
+//           socket.off?.("group:updated", sockRefresh);
+//         };
+//       }
+//     } catch {}
 
-//   const onJoined = () => loadGroups();
+//     return () => {
+//       window.removeEventListener("group:created", onCreated);
+//       window.removeEventListener("group:joined", onJoined);
+//     };
+//   }, [socket, user?._id]);
 
-//   // Custom DOM events you can dispatch from the create/join UI:
-//   // window.dispatchEvent(new CustomEvent("group:created", { detail: { group } }))
-//   // window.dispatchEvent(new CustomEvent("group:joined"))
-//   window.addEventListener("group:created", onCreated);
-//   window.addEventListener("group:joined", onJoined);
-
-//   // If your backend emits socket events, listen too
-//   try {
-//     if (socket) {
-//       const sockRefresh = () => loadGroups();
-//       socket.on?.("group:created", sockRefresh);
-//       socket.on?.("group:joined", sockRefresh);
-//       socket.on?.("group:updated", sockRefresh);
-//       return () => {
-//         window.removeEventListener("group:created", onCreated);
-//         window.removeEventListener("group:joined", onJoined);
-//         socket.off?.("group:created", sockRefresh);
-//         socket.off?.("group:joined", sockRefresh);
-//         socket.off?.("group:updated", sockRefresh);
-//       };
-//     }
-//   } catch {}
-
-//   return () => {
-//     window.removeEventListener("group:created", onCreated);
-//     window.removeEventListener("group:joined", onJoined);
-//   };
-// }, [socket, user?._id]);
-
-//   /* unread bumps for groups via socket (only for visible/verified groups) */
+//   /* unread bumps for groups via socket */
 //   useEffect(() => {
 //     if (!socket || !user?._id) return;
 
@@ -787,7 +740,7 @@
 //       const current = groups.find((g) => g._id === groupId);
 //       const newVal = !current?.[optimisticKey];
 
-//     setGroups((prev) =>
+//       setGroups((prev) =>
 //         prev.map((g) => {
 //           if (g._id !== groupId) return g;
 //           const base = { ...g, [optimisticKey]: newVal };
@@ -846,7 +799,7 @@
 
 //     return (
 //       <div
-//         className="relative flex items-center gap-3 px-4 py-3 border-b border-zinc-900/60 hover:bg-zinc-900/50 cursor-pointer"
+//         className="relative flex items-center gap-3 px-4 py-3 border-b border-zinc-900/60 hover:bg-zinc-900/50 cursor-pointer sm:px-3 sm:py-2"
 //         onClick={() => {
 //           navigate(`/${pid}`);
 //           onSelectChat?.(conv.userDetails);
@@ -859,7 +812,7 @@
 //         <Avatar imageUrl={conv?.userDetails?.profilePic} name={conv?.userDetails?.name} />
 //         <div className="flex-1 min-w-0">
 //           <div className="flex items-center gap-2 min-w-0">
-//             <h3 className="text-zinc-200 font-medium truncate">
+//             <h3 className="text-zinc-200 font-medium truncate text-[15px] sm:text-sm">
 //               {highlightText(conv?.userDetails?.name, search)}
 //             </h3>
 //             {conv?.isPinned && <Pin size={14} className="text-emerald-400/70 shrink-0" title="Pinned" />}
@@ -883,16 +836,21 @@
 //         </div>
 
 //         {/* 3-dot menu */}
-//         <div className="ml-2 relative z-50" ref={chatMenuRef} onClick={(e) => e.stopPropagation()}>
+//         <div className="ml-2 relative" ref={chatMenuRef} onClick={(e) => e.stopPropagation()}>
 //           <button
-//             className="p-1 rounded hover:bg-zinc-800/70"
+//             className="p-2 rounded hover:bg-zinc-800/70 sm:p-1.5"
 //             onClick={() => setChatMenuOpen(chatMenuOpen === conv._id ? null : conv._id)}
 //             aria-label="Chat menu"
 //           >
 //             <EllipsisVertical className="text-zinc-400 hover:text-zinc-200" />
 //           </button>
 //           {chatMenuOpen === conv._id && (
-//             <div className="absolute right-0 mt-2 w-44 rounded-lg border border-zinc-700 bg-[#0f1318] shadow-xl overflow-hidden">
+//             <div className="fixed z-[9999] mt-2 w-44 rounded-lg border border-zinc-700 bg-[#0f1318] shadow-xl overflow-hidden"
+//               style={{
+//                 top: chatMenuRef.current?.getBoundingClientRect().bottom + 'px',
+//                 left: chatMenuRef.current?.getBoundingClientRect().right - 176 + 'px'
+//               }}
+//             >
 //               <button className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-800/60" onClick={() => navigate(`/${pid}`)}>
 //                 View chat
 //               </button>
@@ -965,7 +923,7 @@
 
 //     return (
 //       <div
-//         className="relative w-full text-left px-4 py-3 border-b border-zinc-900/60 hover:bg-zinc-900/50 transition flex items-center gap-3 cursor-pointer"
+//         className="relative w-full text-left px-4 py-3 border-b border-zinc-900/60 hover:bg-zinc-900/50 transition flex items-center gap-3 cursor-pointer sm:px-3 sm:py-2"
 //         onClick={() => {
 //           if (g.isMember === false) {
 //             toast.error("You are not a member of this group");
@@ -980,11 +938,11 @@
 //         <img
 //           src={g.profilePic || "/group-placeholder.png"}
 //           alt=""
-//           className="w-10 h-10 rounded-full object-cover ring-1 ring-emerald-500/20"
+//           className="w-10 h-10 rounded-full object-cover ring-1 ring-emerald-500/20 sm:w-9 sm:h-9"
 //         />
 //         <div className="flex-1 min-w-0">
 //           <div className="flex items-center gap-2">
-//             <div className="font-medium truncate text-zinc-200">{g.name}</div>
+//             <div className="font-medium truncate text-zinc-200 text-[15px]">{g.name}</div>
 //             {g?.isPinned && <Pin size={14} className="text-emerald-400/70 shrink-0" title="Pinned" />}
 //             {g?.isMuted && <BellOff size={14} className="text-zinc-500 shrink-0" title="Muted" />}
 //             {g?.isArchived && <Archive size={14} className="text-zinc-500 shrink-0" title="Archived" />}
@@ -1005,16 +963,21 @@
 //         </div>
 
 //         {/* 3-dot menu */}
-//         <div className="ml-2 relative z-50" ref={groupMenuRef} onClick={(e) => e.stopPropagation()}>
+//         <div className="ml-2 relative" ref={groupMenuRef} onClick={(e) => e.stopPropagation()}>
 //           <button
-//             className="p-1 rounded hover:bg-zinc-800/70"
+//             className="p-2 rounded hover:bg-zinc-800/70 sm:p-1.5"
 //             onClick={() => setGroupMenuOpen(groupMenuOpen === g._id ? null : g._id)}
 //             aria-label="Group menu"
 //           >
 //             <EllipsisVertical className="text-zinc-400 hover:text-zinc-200" />
 //           </button>
 //           {groupMenuOpen === g._id && (
-//             <div className="absolute right-0 mt-2 w-44 rounded-lg border border-zinc-700 bg-[#0f1318] shadow-xl overflow-hidden">
+//             <div className="fixed z-[9999] mt-2 w-44 rounded-lg border border-zinc-700 bg-[#0f1318] shadow-xl overflow-hidden"
+//               style={{
+//                 top: groupMenuRef.current?.getBoundingClientRect().bottom + 'px',
+//                 left: groupMenuRef.current?.getBoundingClientRect().right - 176 + 'px'
+//               }}
+//             >
 //               <button
 //                 className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-800/60"
 //                 onClick={() => navigate(`/g/${g._id}`)}
@@ -1046,9 +1009,20 @@
 //     );
 //   };
 
+//   /* ===================== Compose responsive/sticky state ===================== */
+//   const isGroupCreateOpen =
+//     activeTab === "groups" &&
+//     new URLSearchParams(location.search).get("new") === "1";
+
 //   /* ---------- render ---------- */
 //   return (
-//     <div className="w-full h-full grid grid-cols-1 lg:grid-cols-[64px,1fr] bg-[#0a0f14] text-zinc-100">
+//     <div
+//       className="w-full bg-[#0a0f14] text-zinc-100"
+//       style={{
+//         height: "calc(var(--vh, 1vh) * 100)",
+//         paddingBottom: "env(safe-area-inset-bottom)",
+//       }}
+//     >
 //       <Toaster
 //         position="top-center"
 //         toastOptions={{
@@ -1064,235 +1038,265 @@
 //         }}
 //       />
 
-//       {/* Icon rail */}
-//       <div className="bg-[#0b1016] border-b lg:border-b-0 lg:border-r border-zinc-800/70 h-full py-4 lg:py-5 flex lg:flex-col items-center justify-between gap-3">
-//         <div className="flex lg:flex-col items-center gap-2">
-//           <button
-//             title="Chats"
-//             className={`w-12 h-12 grid place-items-center cursor-pointer rounded-lg transition ${
-//               activeTab === "chats"
-//                 ? "text-emerald-400 bg-emerald-500/10 ring-1 ring-emerald-500/30"
-//                 : "text-zinc-300 hover:text-emerald-400 hover:bg-emerald-500/10"
-//             }`}
-//             onClick={() => {
-//               setActiveTab("chats");
-//               navigate("/");
-//             }}
-//           >
-//             <MessageCircle size={20} />
-//           </button>
-
-//           <button
-//             title="Add friend"
-//             onClick={() => setOpenSearchUser(true)}
-//             className="w-12 h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-emerald-400 rounded-lg hover:bg-emerald-500/10 transition"
-//           >
-//             <UserPlus size={20} />
-//           </button>
-
-//           <button
-//             title="Groups"
-//             onClick={() => {
-//               setActiveTab("groups");
-//               onSelectChat?.(null);
-//               navigate("/g");
-//             }}
-//             className={`w-12 h-12 grid place-items-center cursor-pointer rounded-lg transition ${
-//               activeTab === "groups"
-//                 ? "text-emerald-400 bg-emerald-500/10 ring-1 ring-emerald-500/30"
-//                 : "text-zinc-300 hover:text-emerald-400 hover:bg-emerald-500/10"
-//             }`}
-//           >
-//             <Users size={20} />
-//           </button>
-//         </div>
-
-//         {/* <div className="flex items-center gap-2 pr-3 lg:pr-0">
-//        */}
-//        <div className="flex flex-col items-center gap-2 pr-3 lg:pr-0">
-
-//           <button onClick={() => setEditProfile(true)} className="shrink-0">
-//             <Avatar imageUrl={user?.profilePic} name={user?.name} userId={user?._id} />
-//           </button>
-//           <button
-//             title="Logout"
-//             onClick={handleLogout}
-//             className="text-zinc-300 hover:text-rose-400 hover:bg-rose-500/10 p-2 rounded-lg transition"
-//           >
-//             <LogOut size={20} />
-//           </button>
-//         </div>
-//       </div>
-
-//       {/* Main list */}
-//       <div className="w-full bg-[#090d12]">
-//         {/* Header */}
-//         <div className="h-14 px-4 border-b border-zinc-800/70 flex items-center justify-between">
-//           <h2 className="font-semibold tracking-wide text-zinc-200">
-//             {activeTab === "groups" ? "Groups" : "Chats"}
-//           </h2>
-
-//           {activeTab === "groups" ? (
+//  <div className="grid grid-cols-1 lg:grid-cols-[64px,minmax(320px,1fr)] h-full min-w-0 min-h-0">
+//         {/* Icon rail */}
+//         <div
+//           className={[
+//             "bg-[#0b1016] border-b lg:border-b-0 lg:border-r border-zinc-800/70",
+// isGroupCreateOpen ? "relative z-0" : "sticky top-0 z-20 lg:z-auto",
+//             "h-14 lg:h-full py-2 lg:py-5 flex items-center justify-between gap-3 px-2 lg:px-0 lg:flex-col",
+//           ].join(" ")}
+//         >
+//           <div className="flex items-center gap-2 lg:flex-col">
 //             <button
-//               onClick={() => {
-//                 navigate("/g?new=1");
-//                 try {
-//                   window.dispatchEvent(new CustomEvent("group:new"));
-//                 } catch {}
-//               }}
-//               className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm ring-1 ring-emerald-400/30 shadow-sm"
-//             >
-//               <Plus size={16} />
-//               <span className="font-medium">New Group</span>
-//             </button>
-//           ) : (
-//             <div className="opacity-0 select-none">
-//               <EllipsisVertical size={18} />
-//             </div>
-//           )}
-//         </div>
-
-//         {/* Search + Tab toggles */}
-//         <div className="px-4 py-3 border-b border-zinc-800/70">
-//           <div className="flex items-center gap-2 rounded-xl px-3 py-2 border border-zinc-700/60 bg-[#0f1419]">
-//             <Search size={16} className="text-zinc-500" />
-//             <input
-//               ref={searchInputRef}
-//               type="text"
-//               placeholder={activeTab === "groups" ? "Search groups..." : "Search chats..."}
-//               value={search}
-//               onChange={(e) => setSearch(e.target.value)}
-//               className="bg-transparent outline-none w-full text-sm text-zinc-300 placeholder-zinc-500"
-//             />
-//           </div>
-
-//           <div className="mt-3 grid grid-cols-2 gap-2">
-//             <button
-//               className={`py-2 text-sm font-medium rounded-lg border ${
+//               title="Chats"
+//               className={`w-11 h-11 lg:w-12 lg:h-12 grid place-items-center cursor-pointer rounded-lg transition ${
 //                 activeTab === "chats"
-//                   ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10"
-//                   : "text-zinc-400 border-zinc-700/60 hover:bg-zinc-800/50"
+//                   ? "text-emerald-400 bg-emerald-500/10 ring-1 ring-emerald-500/30"
+//                   : "text-zinc-300 hover:text-emerald-400 hover:bg-emerald-500/10"
 //               }`}
 //               onClick={() => {
 //                 setActiveTab("chats");
 //                 navigate("/");
 //               }}
 //             >
-//               Chats
+//               <MessageCircle size={20} />
 //             </button>
+
 //             <button
-//               className={`py-2 text-sm font-medium rounded-lg border ${
-//                 activeTab === "groups"
-//                   ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10"
-//                   : "text-zinc-400 border-zinc-700/60 hover:bg-zinc-800/50"
-//               }`}
+//               title="Add friend"
+//               onClick={() => setOpenSearchUser(true)}
+//               className="w-11 h-11 lg:w-12 lg:h-12 grid place-items-center cursor-pointer text-zinc-300 hover:text-emerald-400 rounded-lg hover:bg-emerald-500/10 transition"
+//             >
+//               <UserPlus size={20} />
+//             </button>
+
+//             <button
+//               title="Groups"
 //               onClick={() => {
 //                 setActiveTab("groups");
 //                 onSelectChat?.(null);
 //                 navigate("/g");
 //               }}
+//               className={`w-11 h-11 lg:w-12 lg:h-12 grid place-items-center cursor-pointer rounded-lg transition ${
+//                 activeTab === "groups"
+//                   ? "text-emerald-400 bg-emerald-500/10 ring-1 ring-emerald-500/30"
+//                   : "text-zinc-300 hover:text-emerald-400 hover:bg-emerald-500/10"
+//               }`}
 //             >
-//               Groups
+//               <Users size={20} className="shrink-0" />
+//             </button>
+//           </div>
+
+//           <div className="flex items-center gap-2 pr-2 lg:pr-0 lg:flex-col">
+//             <button onClick={() => setEditProfile(true)} className="shrink-0">
+//               <Avatar imageUrl={user?.profilePic} name={user?.name} userId={user?._id} />
+//             </button>
+//             <button
+//               title="Logout"
+//               onClick={handleLogout}
+//               className="text-zinc-300 hover:text-rose-400 hover:bg-rose-500/10 p-2 rounded-lg transition"
+//             >
+//               <LogOut size={20} />
 //             </button>
 //           </div>
 //         </div>
 
-//         {/* Lists */}
-//         <div className="h-[calc(100vh-230px)] overflow-x-hidden overflow-y-auto pb-6">
-//           {activeTab === "chats" ? (
-//             <>
-//               {/* Pinned */}
-//               {pinnedChats.length > 0 && (
-//                 <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">Pinned</div>
-//               )}
-//               <div className="divide-y divide-zinc-900/60">
-//                 {pinnedChats.map((c) => (
-//                   <ChatRow key={c?._id} conv={c} />
-//                 ))}
-//               </div>
+//         {/* Main column - changed overflow-hidden to overflow-x-clip */}
+//         <div className="relative overflow-x-clip w-full bg-[#090d12] flex flex-col min-h-0">
+//           {/* Header */}
+//           <div className={[
+// "sticky top-14 lg:top-0 z-10 lg:z-auto",
+//             "w-full max-w-full box-border",
+//             "h-14 px-4 border-b border-zinc-800/70 bg-[#090d12]",
+//             "flex items-center justify-between"
+//           ].join(" ")}>
+//             <div className="flex w-full items-center gap-3 min-w-0">
+//               <h2 className="font-semibold tracking-wide text-zinc-200 text-[15px] sm:text-base truncate">
+//                 {activeTab === "groups" ? "Groups" : "Chats"}
+//               </h2>
 
-//               {/* Regular */}
-//               {pinnedChats.length > 0 && regularChats.length > 0 && (
-//                 <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">Chats</div>
+//               {activeTab === "groups" && (
+//                 <div className="ml-auto flex items-center gap-2 shrink-0">
+//   <button
+//     onClick={() => {
+//       navigate("/g?new=1");
+//       try { window.dispatchEvent(new CustomEvent("group:new")); } catch {}
+//     }}
+//     className="inline-flex items-center gap-2 pl-6 pr-18 sm:px-3.5 sm:py-2 rounded-xl
+//               text-white text-sm 
+//                hover: transition-all duration-150 ease-in-out focus:outline-none  -ml-2 mr-4"
+//   >
+//     {/* Icon wrapper with its own background */}
+//     <span className="p-1.5 rounded-lg bg-emerald-700 flex items-center justify-center">
+//       <Plus size={14} />
+//     </span>
+//     <span className="font-medium hidden xs:inline">New Group</span>
+//   </button>
+// </div>
+
 //               )}
-//               {regularChats.length > 0 ? (
+//             </div>
+//           </div>
+
+//           {/* Search + Tab toggles */}
+//           <div className={[
+//             "px-3 sm:px-4 py-2 sm:py-3 border-b border-zinc-800/70 bg-[#090d12]",
+//             "min-w-0 w-full",
+// isGroupCreateOpen ? "relative" : "sticky top-14 lg:top-14 z-10 lg:z-auto",
+//           ].join(" ")}>
+//             <div className="flex items-center gap-2 rounded-xl px-3 py-2 border border-zinc-700/60 bg-[#0f1419]">
+//               <Search size={16} className="text-zinc-500" />
+//               <input
+//                 ref={searchInputRef}
+//                 type="text"
+//                 placeholder={activeTab === "groups" ? "Search groups..." : "Search chats..."}
+//                 value={search}
+//                 onChange={(e) => setSearch(e.target.value)}
+//                 className="bg-transparent outline-none w-full text-[15px] sm:text-sm text-zinc-300 placeholder-zinc-500"
+//                 inputMode="search"
+//               />
+//             </div>
+
+//             {/* Segmented Tabs */}
+//             <div className="mt-2 sm:mt-3 relative rounded-xl bg-[#0f1419] p-1 overflow-hidden min-w-0 w-full">
+//               <div
+//                 className={[
+//                   "absolute top-1 bottom-1 left-1 w-[calc(50%-0.125rem)]",
+//                   "rounded-lg bg-emerald-500/10 ring-1 ring-emerald-500/30",
+//                   "transition-transform duration-200 ease-out will-change-transform",
+//                 ].join(" ")}
+//                 style={{
+//                   transform: activeTab === "groups" ? "translateX(calc(100% + 0.25rem))" : "translateX(0)",
+//                 }}
+//                 aria-hidden="true"
+//               />
+
+//               <div className="relative grid grid-cols-2 gap-1">
+//                 <button
+//                   className={[
+//                     "h-8 w-auto px-2 min-w-0 truncate whitespace-nowrap",
+//                     "rounded-lg px-3 text-sm font-medium text-center",
+//                     "transition-colors duration-150",
+//                     activeTab === "chats" ? "text-emerald-400" : "text-zinc-400 hover:text-zinc-200",
+//                   ].join(" ")}
+//                   onClick={() => { setActiveTab("chats"); navigate("/"); }}
+//                 >
+//                   Chats
+//                 </button>
+
+//                 <button
+//                   className={[
+//                     "h-8 w-auto px-2 min-w-0 truncate whitespace-nowrap",
+//                     "rounded-lg px-3 text-sm font-medium text-center",
+//                     "transition-colors duration-150",
+//                     activeTab === "groups" ? "text-emerald-400" : "text-zinc-400 hover:text-zinc-200",
+//                   ].join(" ")}
+//                   onClick={() => { setActiveTab("groups"); onSelectChat?.(null); navigate("/g"); }}
+//                 >
+//                   Groups
+//                 </button>
+//               </div>
+//             </div>
+//           </div>
+
+//           {/* Lists - changed to overflow-y-auto */}
+//           <div
+//             className="flex-1 min-h-0 overflow-y-auto pb-6 sm:pb-6 px-0"
+//             style={{
+//               paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)",
+//             }}
+//           >
+//             {activeTab === "chats" ? (
+//               <>
+//                 {pinnedChats.length > 0 && (
+//                   <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">Pinned</div>
+//                 )}
 //                 <div className="divide-y divide-zinc-900/60">
-//                   {regularChats.map((c) => (
+//                   {pinnedChats.map((c) => (
 //                     <ChatRow key={c?._id} conv={c} />
 //                   ))}
 //                 </div>
-//               ) : pinnedChats.length === 0 ? (
-//                 <div className="px-4 pt-4 text-zinc-500">No chats yet</div>
-//               ) : null}
 
-//               {/* Archived (collapsible) */}
-//               {chatsArchived.length > 0 && (
-//                 <>
-//                   <button
-//                     className="w-full text-left px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500 flex items-center gap-1"
-//                     onClick={() => setShowArchivedChats((s) => !s)}
-//                   >
-//                     {showArchivedChats ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-//                     Archived Chats ({chatsArchived.length})
-//                   </button>
-//                   {showArchivedChats && (
-//                     <div className="divide-y divide-zinc-900/60">
-//                       {chatsArchived.map((c) => (
-//                         <ChatRow key={c?._id} conv={c} />
-//                       ))}
-//                     </div>
-//                   )}
-//                 </>
-//               )}
-//             </>
-//           ) : (
-//             <>
-//               {/* Groups list */}
-//               {groupsLoading && <p className="p-4 text-zinc-400">Loading…</p>}
+//                 {pinnedChats.length > 0 && regularChats.length > 0 && (
+//                   <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">Chats</div>
+//                 )}
+//                 {regularChats.length > 0 ? (
+//                   <div className="divide-y divide-zinc-900/60">
+//                     {regularChats.map((c) => (
+//                       <ChatRow key={c?._id} conv={c} />
+//                     ))}
+//                   </div>
+//                 ) : pinnedChats.length === 0 ? (
+//                   <div className="px-4 pt-4 text-zinc-500">No chats yet</div>
+//                 ) : null}
 
-//               {!groupsLoading && pinnedGroups.length > 0 && (
-//                 <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">
-//                   Pinned
+//                 {chatsArchived.length > 0 && (
+//                   <>
+//                     <button
+//                       className="w-full text-left px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500 flex items-center gap-1"
+//                       onClick={() => setShowArchivedChats((s) => !s)}
+//                     >
+//                       {showArchivedChats ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+//                       Archived Chats ({chatsArchived.length})
+//                     </button>
+//                     {showArchivedChats && (
+//                       <div className="divide-y divide-zinc-900/60">
+//                         {chatsArchived.map((c) => (
+//                           <ChatRow key={c?._id} conv={c} />
+//                         ))}
+//                       </div>
+//                     )}
+//                   </>
+//                 )}
+//               </>
+//             ) : (
+//               <>
+//                 {groupsLoading && <p className="p-4 text-zinc-400">Loading…</p>}
+
+//                 {!groupsLoading && pinnedGroups.length > 0 && (
+//                   <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">
+//                     Pinned
+//                   </div>
+//                 )}
+//                 <div className="divide-y divide-zinc-900/60">
+//                   {pinnedGroups.map((g) => (
+//                     <GroupRow key={g._id} g={g} />
+//                   ))}
 //                 </div>
-//               )}
-//               <div className="divide-y divide-zinc-900/60">
-//                 {pinnedGroups.map((g) => (
-//                   <GroupRow key={g._id} g={g} />
-//                 ))}
-//               </div>
 
-//               {pinnedGroups.length > 0 && regularGroups.length > 0 && (
-//                 <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">
-//                   Groups
+//                 {pinnedGroups.length > 0 && regularGroups.length > 0 && (
+//                   <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">
+//                     Groups
+//                   </div>
+//                 )}
+//                 <div className="divide-y divide-zinc-900/60">
+//                   {regularGroups.map((g) => (
+//                     <GroupRow key={g._id} g={g} />
+//                   ))}
 //                 </div>
-//               )}
-//               <div className="divide-y divide-zinc-900/60">
-//                 {regularGroups.map((g) => (
-//                   <GroupRow key={g._id} g={g} />
-//                 ))}
-//               </div>
 
-//               {/* Archived (collapsible) */}
-//               {groupsArchived.length > 0 && (
-//                 <>
-//                   <button
-//                     className="w-full text-left px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500 flex items-center gap-1"
-//                     onClick={() => setShowArchivedGroups((s) => !s)}
-//                   >
-//                     {showArchivedGroups ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-//                     Archived Groups ({groupsArchived.length})
-//                   </button>
-//                   {showArchivedGroups && (
-//                     <div className="divide-y divide-zinc-900/60">
-//                       {groupsArchived.map((g) => (
-//                         <GroupRow key={g._id} g={g} />
-//                       ))}
-//                     </div>
-//                   )}
-//                 </>
-//               )}
-//             </>
-//           )}
+//                 {groupsArchived.length > 0 && (
+//                   <>
+//                     <button
+//                       className="w-full text-left px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500 flex items-center gap-1"
+//                       onClick={() => setShowArchivedGroups((s) => !s)}
+//                     >
+//                       {showArchivedGroups ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+//                       Archived Groups ({groupsArchived.length})
+//                     </button>
+//                     {showArchivedGroups && (
+//                       <div className="divide-y divide-zinc-900/60">
+//                         {groupsArchived.map((g) => (
+//                           <GroupRow key={g._id} g={g} />
+//                         ))}
+//                       </div>
+//                     )}
+//                   </>
+//                 )}
+//               </>
+//             )}
+//           </div>
 //         </div>
 //       </div>
 
@@ -2396,7 +2400,7 @@ const Side = ({ onSelectChat }) => {
         </div>
 
         {/* Main column */}
-        <div className="w-full bg-[#090d12] flex flex-col min-h-0">
+ <div className="w-full bg-[#090d12] flex flex-col min-h-0 overflow-hidden">
           {/* Header (sticky unless composer open) */}
          <div
   className={[
@@ -2490,15 +2494,14 @@ const Side = ({ onSelectChat }) => {
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}
           > */}
           <div
-  className="
-    flex-1 min-h-0
-    overflow-x-hidden
-    overflow-visible        /* NEW: let overlays escape on mobile */
-    lg:overflow-y-auto      /* keep the nice scrolling on desktop only */
-    pb-6 sm:pb-6 px-0
-  "
-  style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}
->
+    className="
+      flex-1 min-h-0
+      overflow-x-hidden
+      overflow-y-auto          /* keep scrolling inside the sidebar */
+      pb-6 sm:pb-6 px-0
+    "
+    style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}
+ >
 
             {activeTab === "chats" ? (
               <>
