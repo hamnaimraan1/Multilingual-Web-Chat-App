@@ -871,7 +871,6 @@ const EMOJIS = [
   "🙌",
   "🫶",
   "💪",
-  "❤️",
   "💖",
   "💬",
   "✅",
@@ -994,10 +993,10 @@ const FileBubble = ({ url, fileName, size }) => {
       </div>
       {openHref ? (
         <a href={openHref} target="_blank" rel="noopener noreferrer" className="text-xs underline opacity-90 hover:opacity-100">
-          Open
+          
         </a>
       ) : (
-        <span className="text-xs opacity-60">Open</span>
+        <span className="text-xs opacity-60"></span>
       )}
       {rawUrl ? (
         <a href={rawUrl} download={name} className="text-xs underline opacity-90 hover:opacity-100">
@@ -1489,12 +1488,22 @@ const ChatContainer = ({ chatUserId, onBack }) => {
 
         {messages.map((raw, i) => {
           const msg = normalizeMessage(raw);
-          const isMe = String(msg.msgByUser || msg.sender) === String(myId);
-          const bubble = isMe ? "bg-emerald-700 text-white" : "bg-[#1f2c34] text-zinc-100";
-          const wrap = isMe ? "text-right" : "text-left";
+         
           const time = fmtTime(msg.createdAt || msg.timestamp || new Date());
           const type = resolveType(msg);
-          const isText = type === "text";
+          const isMe = String(msg.msgByUser || msg.sender) === String(myId);
+           const wrap = isMe ? "text-right" : "text-left";
+            const isText = type === "text";
+const originalText = getTextFromMessage(msg) || msg.text || "";
+const emojiOnly = isText && isEmojiOnly((originalText || "").trim());
+
+const bubble = emojiOnly
+  ? "bg-transparent text-zinc-100"
+  : isMe
+  ? "bg-emerald-700 text-white"
+  : "bg-[#1f2c34] text-zinc-100";
+          
+        
 
           return (
             <div
@@ -1581,30 +1590,32 @@ const ChatContainer = ({ chatUserId, onBack }) => {
                 ) : (
                   <>
                     {/* TEXT */}
-                    {type === "text" && (
-                      <div className="text-[15px] whitespace-pre-wrap leading-6">
-                        {msg.translatedText && !isMe && !isEmojiOnly(msg.text)
-                          ? showOriginalMap[msg._id]
-                            ? safeText(msg.text)
-                            : safeText(msg.translatedText)
-                          : safeText(msg.text)}
-                        {msg.isEdited && (
-                          <span className="ml-2 text-[11px] opacity-70 italic align-baseline">(edited)</span>
-                        )}
-                        {msg.translatedText && !isMe && !isEmojiOnly(msg.text) && (
-                          <div className="text-[11px] mt-1 opacity-80">
-                            <button
-                              onClick={() =>
-                                setShowOriginalMap((m) => ({ ...m, [msg._id]: !m[msg._id] }))
-                              }
-                              className="underline"
-                            >
-                              {showOriginalMap[msg._id] ? "Show translation" : "Show original"}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                   {type === "text" && (
+  <div
+    className={
+      emojiOnly
+        ? "text-5xl leading-[1] text-center py-1 select-none"
+        : "text-[15px] whitespace-pre-wrap leading-6"
+    }
+  >
+    {msg.translatedText && !isMe && !emojiOnly
+      ? (showOriginalMap[msg._id] ? safeText(originalText) : safeText(msg.translatedText))
+      : safeText(originalText)}
+    {!emojiOnly && msg.isEdited && (
+      <span className="ml-2 text-[11px] opacity-70 italic align-baseline">(edited)</span>
+    )}
+    {msg.translatedText && !isMe && !emojiOnly && (
+      <div className="text-[11px] mt-1 opacity-80">
+        <button
+          onClick={() => setShowOriginalMap((m) => ({ ...m, [msg._id]: !m[msg._id] }))}
+          className="underline"
+        >
+          {showOriginalMap[msg._id] ? "Show translation" : "Show original"}
+        </button>
+      </div>
+    )}
+  </div>
+)}
 
                     {/* IMAGE */}
                     {type === "image" &&
@@ -1685,7 +1696,7 @@ const ChatContainer = ({ chatUserId, onBack }) => {
 
                     {/* upload status */}
                     {msg.pending && (
-                      <div className="text-[10px] mt-1 opacity-80">Uploading…</div>
+                      <div className="text-[10px] mt-1 opacity-80"></div>
                     )}
                     {msg.failed && (
                       <div className="text-[10px] mt-1 text-red-300">Upload failed</div>

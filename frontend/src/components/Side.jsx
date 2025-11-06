@@ -2548,7 +2548,7 @@ const Side = ({ onSelectChat }) => {
               </>
             ) : (
               <>
-                {groupsLoading && <p className="p-4 text-zinc-400">Loading…</p>}
+                {/* {groupsLoading && <p className="p-4 text-zinc-400">Loading…\</p>} */}
 
                 {!groupsLoading && pinnedGroups.length > 0 && (
                   <div className="px-4 pt-4 pb-2 text-xs uppercase tracking-wider text-zinc-500">

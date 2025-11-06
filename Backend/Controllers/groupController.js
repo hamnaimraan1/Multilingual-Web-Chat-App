@@ -573,17 +573,20 @@ export const getMyGroups = async (req, res) => {
     // const groups = await Group.find({ members: me })
     // show groups where I'm a member, an admin, or the creator
    const groups = await Group.find({
-     $or: [{ members: me }, { admins: me }, { createdBy: me }],
+  $or: [{ members: me }, { admins: me }, { createdBy: me }],
+})
+  .select("name profilePic updatedAt createdAt lastMessage createdBy")
+  .populate("createdBy", "name email")
+  .populate({
+    path: "lastMessage",
+    select:
+      "text message messageType createdAt msgByUser imageUrl videoUrl audioUrl fileUrl fileName fileSize",
+    populate: { path: "msgByUser", select: "name profilePic" },
   })
-      .select("name profilePic updatedAt createdAt lastMessage") // group-level flags removed (we use Pref)
-      .populate({
-        path: "lastMessage",
-        select:
-          "text message messageType createdAt msgByUser imageUrl videoUrl audioUrl fileUrl fileName fileSize",
-        populate: { path: "msgByUser", select: "name profilePic" },
-      })
-      .sort({ updatedAt: -1 })
-      .lean();
+  .sort({ updatedAt: -1 })
+  .lean();
+console.log("📦 Populated group:", groups);
+
 
     // backfill lastMessage if needed
     const withLast = await Promise.all(
@@ -682,9 +685,11 @@ export const getGroupDetails = async (req, res) => {
 
     const { groupId } = req.params;
     const group = await Group.findById(groupId)
-      .populate("admins", "name email")
-      .populate("members", "name email")
-      .lean();
+  .populate("createdBy", "name email")
+  .populate("admins", "name email")
+  .populate("members", "name email")
+  .lean();
+
     if (!group) return res.status(404).json({ message: "Group not found" });
 
     const messages = await Msg.find({ groupId })

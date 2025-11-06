@@ -628,7 +628,7 @@ const keyPath = path.join(certDir, "server.key");
 const certPath = path.join(certDir, "server.crt");
 
 if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
-  console.error("❌ TLS certs not found. Expected at:", keyPath, certPath);
+  console.error("TLS certs not found. Expected at:", keyPath, certPath);
   console.error("Did you put mkcert files in Backend/certs ?");
   process.exit(1);
 }
@@ -803,7 +803,8 @@ io.on("connect", async (socket) => {
     try {
       const group = await Group.findById(groupId)
         .populate("members", "name email profilePic")
-        .populate("admins", "name email");
+        .populate("admins", "name email")
+         .populate("createdBy", "name email");
 
       if (!group) {
         socket.emit("error", { msg: "Group not found" });

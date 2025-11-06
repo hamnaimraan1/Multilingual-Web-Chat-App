@@ -1,4 +1,5 @@
 
+
 // import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // import { useLocalStorage } from "@mantine/hooks";
 // import {
@@ -33,7 +34,7 @@
 // import { useNavigate, useParams, useLocation } from "react-router-dom";
 // import { createPortal } from "react-dom";
 
-
+// /* ---------- modal / confirm (unchanged behavior) ---------- */
 // const Modal = ({ open, onClose, title, children, footer, wide = false, zIndex = 1000 }) => {
 //   useEffect(() => {
 //     if (!open) return;
@@ -82,6 +83,7 @@
 //   </Modal>
 // );
 
+// /* ---------- small helpers ---------- */
 // const fmtTime = (d) => {
 //   try {
 //     const date = new Date(d);
@@ -230,7 +232,38 @@
 //   };
 // };
 
-// /* =========================== Member Picker (from your old file) =========================== */
+// /* ---------- FAST append helpers (avoid global sorts on every add) ---------- */
+// const appendUnique = (list, item) => {
+//   if (!item) return list;
+//   if (item._id && list.some((x) => x && x._id === item._id)) return list;
+
+//   const t = new Date(item.createdAt || item.timestamp || 0).getTime();
+//   const key = `${item.clientNonce || ""}-${t}-${item.text || item.url || ""}`;
+//   if (
+//     list.some(
+//       (x) =>
+//         !x?._id &&
+//         x &&
+//         `${x.clientNonce || ""}-${new Date(x.createdAt || x.timestamp || 0).getTime()}-${x.text || x.url || ""}` === key
+//     )
+//   ) {
+//     return list;
+//   }
+//   return [...list, item];
+// };
+
+// const appendChrono = (list, item) => {
+//   if (!item) return list;
+//   const at = new Date(item.createdAt || item.timestamp || 0).getTime();
+//   const last = list.length
+//     ? new Date(list[list.length - 1]?.createdAt || list[list.length - 1]?.timestamp || 0).getTime()
+//     : -Infinity;
+//   if (at >= last) return appendUnique(list, item);
+//   // rare out-of-order fallback
+//   return dedupeMessages([...list, item]);
+// };
+
+// /* =========================== Member Picker =========================== */
 // const MemberPicker = ({ open, onClose, onSubmit, excludeIds = [] }) => {
 //   const [query, setQuery] = useState("");
 //   const [results, setResults] = useState([]);
@@ -326,17 +359,17 @@
 //   );
 // };
 
-// /* ---------- simple media bubbles ---------- */
+// /* ---------- media bubbles (memoized) ---------- */
 // const Lightbox = ({ open, src, onClose, caption }) => {
 //   if (!open) return null;
 //   return (
 //     <div className="fixed inset-0 bg-black/90 z-[80] flex items-center justify-center p-4" onClick={onClose}>
-//       <img src={src} alt={caption || "image"} className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain" />
+//       <img loading="lazy" src={src} alt={caption || "image"} className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain" />
 //     </div>
 //   );
 // };
 
-// const VoiceBubble = ({ src }) => {
+// const VoiceBubble = React.memo(function VoiceBubble({ src }) {
 //   const audioRef = useRef(null);
 //   const [playing, setPlaying] = useState(false);
 //   const [cur, setCur] = useState(0);
@@ -394,9 +427,9 @@
 //       <audio ref={audioRef} src={src} preload="metadata" className="hidden" />
 //     </div>
 //   );
-// };
+// });
 
-// const FileBubble = ({ url, fileName, size }) => {
+// const FileBubble = React.memo(function FileBubble({ url, fileName, size }) {
 //   const name = fileName || url?.split("/").pop() || "File";
 //   return (
 //     <div className="flex items-center gap-3 p-2 rounded-xl bg-black/10">
@@ -415,14 +448,15 @@
 //       )}
 //     </div>
 //   );
-// };
+// });
 
-// const ImageBubble = ({ url, fileName }) => {
+// const ImageBubble = React.memo(function ImageBubble({ url, fileName }) {
 //   const [open, setOpen] = useState(false);
 //   return (
 //     <>
 //       <div className="overflow-hidden rounded-xl border border-white/10 bg-black/10">
 //         <img
+//           loading="lazy"
 //           src={url}
 //           alt={fileName || "image"}
 //           className="max-h-72 object-cover cursor-zoom-in max-w-[min(80vw,420px)]"
@@ -440,7 +474,7 @@
 //       <Lightbox open={open} src={url} onClose={() => setOpen(false)} caption={fileName} />
 //     </>
 //   );
-// };
+// });
 
 // /* ---------- safe back helper ---------- */
 // const useSafeBack = () => {
@@ -461,7 +495,6 @@
 
 //   const socket = GetSocket();
 
-//   // unify on "userData" key everywhere
 //   const [userLS] = useLocalStorage({ key: "userData" });
 //   const myId = useMemo(() => userLS?._id || null, [userLS]);
 
@@ -476,6 +509,7 @@
 //   const [groups, setGroups] = useState([]);
 //   const [searchQ, setSearchQ] = useState("");
 //   const [loadingGroups, setLoadingGroups] = useState(false);
+//   const [firstLoad, setFirstLoad] = useState(true);
 
 //   /* message actions */
 //   const [openMenuFor, setOpenMenuFor] = useState(null);
@@ -530,6 +564,19 @@
 //   const [showVoiceOriginalMap, setShowVoiceOriginalMap] = useState({});
 //   const [translatingMessageId, setTranslatingMessageId] = useState(null);
 
+//   /* ======== WINDOWED RENDERING for big threads ======== */
+//   const WINDOW = 200;
+//   const STEP = 200;
+//   const [startIdx, setStartIdx] = useState(0);
+
+//   const visibleMessages = useMemo(() => {
+//     const n = Array.isArray(messages) ? messages.length : 0;
+//     if (n <= WINDOW) return messages || [];
+//     const start = Math.max(0, n - WINDOW - startIdx);
+//     const end = n - startIdx;
+//     return (messages || []).slice(start, end);
+//   }, [messages, startIdx]);
+
 //   useEffect(() => {
 //     if (!Array.isArray(messages)) setMessages(Array.isArray(messages) ? messages : []);
 //   }, [messages]);
@@ -548,7 +595,14 @@
 //       setLoadingGroups(false);
 //     }
 //   };
-//   useEffect(() => { loadMyGroups(); }, []);
+
+//   useEffect(() => {
+//     (async () => {
+//       await loadMyGroups();
+//       setFirstLoad(false);
+//     })();
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, []);
 
 //   /* modal control: open only when ?new=1 */
 //   useEffect(() => {
@@ -688,23 +742,16 @@
 //         return m;
 //       });
 
-//       if (!replaced) next = [...next, savedMsg];
+//       if (!replaced) next = appendChrono(prevArr, savedMsg);
 
-//       return next.sort(
-//         (a, b) =>
-//           new Date(a.createdAt || a.timestamp || 0) - new Date(b.createdAt || b.timestamp || 0)
-//       );
+//       return next;
 //     });
 //   }, []);
 
 //   const appendIncomingMessage = useCallback((incoming) => {
 //     const normalized = normalizeMessage(incoming);
 //     if (!normalized) return;
-//     setMessages((prev) => {
-//       const prevArr = Array.isArray(prev) ? prev : [];
-//       if (normalized._id && prevArr.find((m) => m._id === normalized._id)) return prevArr;
-//       return dedupeMessages([...prevArr, normalized]);
-//     });
+//     setMessages((prev) => appendChrono(Array.isArray(prev) ? prev : [], normalized));
 //   }, []);
 
 //   /* open group */
@@ -714,6 +761,7 @@
 //       setActive(null);
 //       setMessages([]);
 //       setSeenByMap({});
+//       setStartIdx(0);
 //       const { data } = await http.get(`/api/groups/${groupId}`);
 //       const group = data?.group;
 //       const initialMessages = data?.messages || data?.groupMessages || [];
@@ -868,21 +916,25 @@
 //     };
 //   }, [socket, active, replaceOptimisticWithSaved, settingsOpen, fetchPastMembers]);
 
-//   /* auto scroll + mark seen when at bottom */
+//   /* auto scroll + mark seen when at bottom, optimized for windowed list */
 //   useEffect(() => {
-//     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+//     const behavior = (visibleMessages?.length || 0) > 150 ? "auto" : "smooth";
+//     messagesEndRef.current?.scrollIntoView({ behavior });
+
 //     const el = listRef.current;
 //     if (!el) return;
 //     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 48;
 //     if (nearBottom) emitSeenGroup();
-//   }, [messages, emitSeenGroup]);
+//   }, [visibleMessages, emitSeenGroup]);
 
+//   /* close kebab on outside click (mousedown = earlier) */
 //   useEffect(() => {
 //     const close = () => setOpenMenuFor(null);
-//     document.addEventListener("click", close);
-//     return () => document.removeEventListener("click", close);
+//     document.addEventListener("mousedown", close);
+//     return () => document.removeEventListener("mousedown", close);
 //   }, []);
 
+//   /* on scroll, update seen if near bottom */
 //   useEffect(() => {
 //     const el = listRef.current;
 //     if (!el) return;
@@ -891,10 +943,11 @@
 //         emitSeenGroup();
 //       }
 //     };
-//     el.addEventListener("scroll", onScroll);
+//     el.addEventListener("scroll", onScroll, { passive: true });
 //     return () => el.removeEventListener("scroll", onScroll);
 //   }, [emitSeenGroup]);
 
+//   /* on window focus, emit seen */
 //   useEffect(() => {
 //     const onFocus = () => emitSeenGroup();
 //     window.addEventListener("focus", onFocus);
@@ -930,6 +983,7 @@
 //     if (sending) return;
 //     const text = newMsg.trim();
 //     setSending(true);
+//     setShowEmoji(false);
 
 //     const clientNonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 //     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -945,7 +999,7 @@
 //       __temp: true,
 //       clientNonce,
 //     });
-//     setMessages((prev) => dedupeMessages([...(Array.isArray(prev) ? prev : []), optimistic]));
+//     setMessages((prev) => appendChrono(Array.isArray(prev) ? prev : [], optimistic));
 //     setNewMsg("");
 
 //     try {
@@ -1009,7 +1063,7 @@
 //         clientNonce,
 //       });
 
-//       setMessages((prev) => dedupeMessages([...(Array.isArray(prev) ? prev : []), optimistic]));
+//       setMessages((prev) => appendChrono(Array.isArray(prev) ? prev : [], optimistic));
 
 //       socket.emit("newGroupMsg", serverPayload, (ack) => {
 //         if (ack && ack.savedMessage) replaceOptimisticWithSaved(ack.savedMessage);
@@ -1270,7 +1324,7 @@
 //     return Math.max(members.filter((u) => String(getId(u)) !== String(senderId)).length, 0);
 //   };
 
-//   const SeenTicks = ({ m, isMe }) => {
+//   const SeenTicks = React.memo(function SeenTicks({ m, isMe }) {
 //     if (!isMe || !m._id) return null;
 
 //     const totalOthers = everyoneElseCountFor(m);
@@ -1282,56 +1336,52 @@
 //         {allSeen ? <CheckCheck size={12} /> : <Check size={12} />}
 //       </span>
 //     );
-//   };
+//   });
 
-//   const ChatHeader = () => (
-//     <div className="h-14 px-2 sm:px-4 border-b border-zinc-800 flex items-center justify-between">
-//       <div className="flex items-center gap-3 min-w-0">
-//         {!embedded && (
-//           <button className="lg:hidden p-2 rounded-lg hover:bg-zinc-800" onClick={() => setShowLeft(true)} title="Groups">
-//             <ChevronLeft />
-//           </button>
-//         )}
-//         {embedded && (
-//           <button className="p-2 rounded-lg hover:bg-zinc-800" onClick={() => safeBack("/g")} title="Back">
-//             <ChevronLeft />
-//           </button>
-//         )}
-//         <img src={active.profilePic || "/group-placeholder.png"} alt="" className="w-9 h-9 rounded-full object-cover" />
-//         <div className="min-w-0">
-//           <div className="flex items-center gap-2 min-w-0">
-//             <h2 className="font-semibold truncate">{active.name}</h2>
-//             {amAdmin && (
-//               <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-700/40">Admin</span>
-//             )}
+//   const ChatHeader = React.memo(function ChatHeader() {
+//     return (
+//       <div className="h-14 px-2 sm:px-4 border-b border-zinc-800 flex items-center justify-between">
+//         <div className="flex items-center gap-3 min-w-0">
+//           {!embedded && (
+//             <button className="lg:hidden p-2 rounded-lg hover:bg-zinc-800" onClick={() => setShowLeft(true)} title="Groups">
+//               <ChevronLeft />
+//             </button>
+//           )}
+//           {embedded && (
+//             <button className="p-2 rounded-lg hover:bg-zinc-800" onClick={() => safeBack("/g")} title="Back">
+//               <ChevronLeft />
+//             </button>
+//           )}
+//           <img loading="lazy" src={active.profilePic || "/group-placeholder.png"} alt="" className="w-9 h-9 rounded-full object-cover" />
+//           <div className="min-w-0">
+//             <div className="flex items-center gap-2 min-w-0">
+//               <h2 className="font-semibold truncate">{active.name}</h2>
+//               {amAdmin && (
+//                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-700/40">Admin</span>
+//               )}
+//             </div>
+//             <div className="text-xs text-zinc-500 truncate">Created by {active?.createdBy?.name || active?.createdBy?.email || "—"}</div>
 //           </div>
-//           {/* <div className="text-xs text-zinc-500 truncate">Created by {active?.createdBy?.name || active?.createdBy?.email || "—"}</div> */}
+//         </div>
+
+//         <div className="flex items-center gap-2">
+//           <button className="lg:hidden p-2 rounded-lg hover:bg-zinc-800" onClick={() => setShowMembersMobile(true)} title="Info">
+//             <Info />
+//           </button>
+
+//           <button onClick={() => setSettingsOpen(true)} className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm">
+//             <SettingsIcon size={16} /> 
+//           </button>
+
+//           {amAdmin && (
+//             <button onClick={() => setPickerOpen(true)} className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-green-500 text-white text-sm">
+//               <UserPlus size={16} /> Add
+//             </button>
+//           )}
 //         </div>
 //       </div>
-
-//       <div className="flex items-center gap-2">
-//         <button className="lg:hidden p-2 rounded-lg hover:bg-zinc-800" onClick={() => setShowMembersMobile(true)} title="Info">
-//           <Info />
-//         </button>
-
-//         <button onClick={() => setSettingsOpen(true)} className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm">
-//           <SettingsIcon size={16} /> 
-//         </button>
-
-//         {/* {amAdmin && (
-//           <button onClick={() => setConfirmDelete(true)} className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-500 text-white text-sm">
-//             <Trash2 size={16} /> Delete
-//           </button>
-//         )} */}
-
-//         {amAdmin && (
-//           <button onClick={() => setPickerOpen(true)} className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-green-500 text-white text-sm">
-//             <UserPlus size={16}  shrink-0 /> Add
-//           </button>
-//         )}
-//       </div>
-//     </div>
-//   );
+//     );
+//   });
 
 //   return (
 //     <div className="min-h-screen h-screen bg-[#0b0d11] text-zinc-100 flex">
@@ -1339,12 +1389,11 @@
 
 //       {/* LEFT: groups list (drawer on mobile) */}
 //       {!embedded && (
-//        <aside
-//   className={`fixed lg:static inset-y-0 left-0 w-[85%] sm:w-80 lg:w-80 z-40 lg:z-auto bg-[#0b0d11] border-r border-zinc-800 flex-shrink-0 flex flex-col transform transition-transform ${
-//     showLeft ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-//   }`}
-// >
-
+//         <aside
+//           className={`fixed lg:static inset-y-0 left-0 w-[85%] sm:w-80 lg:w-80 z-40 bg-[#0b0d11] border-r border-zinc-800 flex-shrink-0 flex flex-col transform transition-transform ${
+//             showLeft ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+//           }`}
+//         >
 //           <div className="h-14 px-4 border-b border-zinc-800 flex items-center justify-between">
 //             <div className="flex items-center gap-2">
 //               <Users size={18} className="text-zinc-400" />
@@ -1373,11 +1422,8 @@
 //             </div>
 //           </div>
 
-// <div
-//   className="overflow-y-scroll h-[calc(100vh-112px)]"
-//   style={{ scrollbarGutter: "stable both-edges" }}
-// >
-//             {loadingGroups && <p className="p-3 text-zinc-400">Loading…</p>}
+//           <div className="overflow-y-auto h-[calc(100vh-112px)]">
+//             {firstLoad && loadingGroups && <p className="p-3 text-zinc-400">Loading…</p>}
 //             {!loadingGroups && !groups.length && <p className="p-3 text-zinc-500">No groups yet</p>}
 //             {groups.map((g) => {
 //               const isActive = active?._id === g._id;
@@ -1389,7 +1435,7 @@
 //                   className={`w-full text-left px-4 py-3 border-b border-zinc-900 hover:bg-zinc-900/60 transition ${isActive ? "bg-zinc-900/70" : ""}`}
 //                 >
 //                   <div className="flex items-center gap-3">
-//                     <img src={g.profilePic || "/group-placeholder.png"} alt="" className="w-10 h-10 rounded-full object-cover" />
+//                     <img loading="lazy" src={g.profilePic || "/group-placeholder.png"} alt="" className="w-10 h-10 rounded-full object-cover" />
 //                     <div className="flex-1 min-w-0">
 //                       <div className="flex items-center gap-2">
 //                         <div className="font-medium truncate">{g.name}</div>
@@ -1418,7 +1464,7 @@
 //       )}
 
 //       {/* RIGHT: chat area */}
-// <main className="flex-1 min-w-0 min-h-0 flex flex-col">
+//       <main className="flex-1 min-w-0 flex flex-col">
 //         {!active ? (
 //           <div className="h-full grid place-items-center px-6">
 //             <div className="text-center max-w-sm">
@@ -1430,20 +1476,27 @@
 //           <>
 //             <ChatHeader />
 
-// <div className="flex-1 min-h-0 flex flex-col lg:flex-row relative z-0">
+//             <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
 //               {/* messages column */}
 //               <div className="flex-1 min-w-0 border-r border-zinc-800 flex flex-col">
-// <div
-//   ref={listRef}
-//   className="flex-1 overflow-y-scroll p-3 sm:p-4 bg-[#070809]"
-//   style={{ scrollbarGutter: "stable both-edges" }}
-// >
-//                   {(!messages || (Array.isArray(messages) && messages.length === 0)) && (
+//                 <div ref={listRef} className="flex-1 overflow-y-auto p-3 sm:p-4 bg-[#070809]">
+//                   {Array.isArray(messages) && messages.length > WINDOW && (messages.length - startIdx - visibleMessages.length > 0) && (
+//                     <div className="flex justify-center mb-2">
+//                       <button
+//                         onClick={() => setStartIdx((s) => s + STEP)}
+//                         className="px-3 py-1.5 text-xs rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200"
+//                       >
+//                         Load older messages
+//                       </button>
+//                     </div>
+//                   )}
+
+//                   {(!visibleMessages || visibleMessages.length === 0) && (
 //                     <p className="text-zinc-500">No messages yet — say hi 👋</p>
 //                   )}
 
-//                   {Array.isArray(messages) &&
-//                     messages.map((m, i) => {
+//                   {Array.isArray(visibleMessages) &&
+//                     visibleMessages.map((m, i) => {
 //                       // skip messages the current user deleted-for-me
 //                       if (Array.isArray(m.deletedFor) && m.deletedFor.some(x => String(x) === String(myId))) {
 //                         return null;
@@ -1774,7 +1827,7 @@
 //           <div>
 //             <label className="block text-sm mb-1 text-zinc-300">Group Photo</label>
 //             <input type="file" accept="image/*" onChange={(e) => onPickPhoto(e.target.files?.[0] || null)} />
-//             {gPhotoPreview && <img src={gPhotoPreview} alt="preview" className="w-16 h-16 rounded-full object-cover mt-2" />}
+//             {gPhotoPreview && <img loading="lazy" src={gPhotoPreview} alt="preview" className="w-16 h-16 rounded-full object-cover mt-2" />}
 //           </div>
 //           <div>
 //             <label className="block text-sm mb-1 text-zinc-300">Members</label>
@@ -1788,15 +1841,15 @@
 //         </div>
 //       </Modal>
 
-//       {/* MemberPicker (works for both Create and Settings) */}
+//       {/* MemberPicker */}
 //       <MemberPicker
 //         open={pickerOpen}
 //         onClose={() => setPickerOpen(false)}
 //         onSubmit={async (picked) => {
 //           if (!picked.length) return toast("ℹ️ No members selected");
-//           setGMembers(picked);           // used by create modal
+//           setGMembers(picked);           // create modal
 //           setPickerOpen(false);
-//           if (!active) return;           // if no active group, we’re in create flow; done here
+//           if (!active) return;           // in create flow; nothing more to do
 //           try {
 //             const ids = picked.map((p) => p._id);
 //             await Promise.all(
@@ -1865,6 +1918,7 @@
 //               <h4 className="text-sm font-semibold text-zinc-300 mb-2">Basic Info</h4>
 //               <div className="flex items-center gap-4">
 //                 <img
+//                   loading="lazy"
 //                   src={settingsDraft.profilePic || active?.profilePic || "/group-placeholder.png"}
 //                   alt="group"
 //                   className="w-16 h-16 rounded-full object-cover border border-zinc-700"
@@ -2032,7 +2086,6 @@
 //     </div>
 //   );
 // }
-
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalStorage } from "@mantine/hooks";
 import {
@@ -2067,23 +2120,7 @@ import uploadFile from "../utils/uploadFile";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { createPortal } from "react-dom";
 
-/* ---------- small helpers ---------- */
-// const Modal = ({ open, onClose, title, children, footer, wide = false, zIndex = 70 }) => {
-//   if (!open) return null;
-//   return (
-//     <div className="fixed inset-0 flex items-center justify-center p-3 z-[70]" style={{ zIndex }}>
-//       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-//       <div className={`relative w-full ${wide ? "max-w-3xl" : "max-w-lg"} rounded-2xl bg-[#121418] border border-zinc-700 shadow-xl`}>
-//         <div className="px-5 py-4 border-b border-zinc-700 flex items-center justify-between">
-//           <h3 className="text-zinc-100 font-semibold">{title}</h3>
-//           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200" aria-label="Close">✕</button>
-//         </div>
-//         <div className="px-5 py-4 max-h-[70vh] overflow-y-auto">{children}</div>
-//         {footer && <div className="px-5 py-4 border-t border-zinc-700">{footer}</div>}
-//       </div>
-//     </div>
-//   );
-// };
+/* ---------- modal / confirm (unchanged behavior) ---------- */
 const Modal = ({ open, onClose, title, children, footer, wide = false, zIndex = 1000 }) => {
   useEffect(() => {
     if (!open) return;
@@ -2132,6 +2169,7 @@ const Confirm = ({ open, onClose, onConfirm, title, message, danger }) => (
   </Modal>
 );
 
+/* ---------- small helpers ---------- */
 const fmtTime = (d) => {
   try {
     const date = new Date(d);
@@ -2177,8 +2215,52 @@ const dedupeMessages = (arr = []) => {
 };
 
 const EMOJIS = [
-  "😀","😁","😂","🤣","😃","😄","😅","😆","😉","😊","🙂","🙃","😋","😎","😍","😘","😗","😙","😚","🥰","🥲","😇","🤩","🥳","😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤗","🤔","🤭","🤫","🤥","😶","😐","😑","🫠","🙄","😬","😮‍💨","🤤","😴","😪","😮","😯","😲","😦","😧","😵","🥴","🤐","🤢","🤮","🤧","😷","🤕","🤒","🤑","🤠","🥸","👍","👎","👌","✌️","🤞","🤟","🤘","🤙","💪","❤️","💛","💚","💙","💜","🖤","🤍","🤎","💖","💗","💓","💞","💕"
+  "😀",
+  "😁",
+  "😂",
+  "🤣",
+  "😃",
+  "😄",
+  "😅",
+  "😆",
+  "😉",
+  "😊",
+  "🙂",
+  "🙃",
+  "😋",
+  "😎",
+  "😍",
+  "😘",
+  "🥰",
+  "😇",
+  "🤩",
+  "🥳",
+  "😏",
+  "😒",
+  "😞",
+  "😔",
+  "👍",
+  "👎",
+  "👌",
+  "✌️",
+  "🤞",
+  "🤟",
+  "🤘",
+  "🤙",
+  "🙏",
+  "👏",
+  "🙌",
+  "🫶",
+  "💪",
+  "💖",
+  "💬",
+  "✅",
+  "❌",
+  "❗",
+  "❓",
+  "⚠️",
 ];
+
 
 const safeText = (v) => (typeof v === "string" ? v : "");
 const EMOJI_RE = /^(?:\p{Emoji_Presentation}|\p{Extended_Pictographic}|\p{Emoji}|\s)+$/u;
@@ -2280,7 +2362,38 @@ const normalizeMessage = (rawIn) => {
   };
 };
 
-/* =========================== Member Picker (from your old file) =========================== */
+/* ---------- FAST append helpers (avoid global sorts on every add) ---------- */
+const appendUnique = (list, item) => {
+  if (!item) return list;
+  if (item._id && list.some((x) => x && x._id === item._id)) return list;
+
+  const t = new Date(item.createdAt || item.timestamp || 0).getTime();
+  const key = `${item.clientNonce || ""}-${t}-${item.text || item.url || ""}`;
+  if (
+    list.some(
+      (x) =>
+        !x?._id &&
+        x &&
+        `${x.clientNonce || ""}-${new Date(x.createdAt || x.timestamp || 0).getTime()}-${x.text || x.url || ""}` === key
+    )
+  ) {
+    return list;
+  }
+  return [...list, item];
+};
+
+const appendChrono = (list, item) => {
+  if (!item) return list;
+  const at = new Date(item.createdAt || item.timestamp || 0).getTime();
+  const last = list.length
+    ? new Date(list[list.length - 1]?.createdAt || list[list.length - 1]?.timestamp || 0).getTime()
+    : -Infinity;
+  if (at >= last) return appendUnique(list, item);
+  // rare out-of-order fallback
+  return dedupeMessages([...list, item]);
+};
+
+/* =========================== Member Picker =========================== */
 const MemberPicker = ({ open, onClose, onSubmit, excludeIds = [] }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -2376,17 +2489,17 @@ const MemberPicker = ({ open, onClose, onSubmit, excludeIds = [] }) => {
   );
 };
 
-/* ---------- simple media bubbles ---------- */
+/* ---------- media bubbles (memoized) ---------- */
 const Lightbox = ({ open, src, onClose, caption }) => {
   if (!open) return null;
   return (
     <div className="fixed inset-0 bg-black/90 z-[80] flex items-center justify-center p-4" onClick={onClose}>
-      <img src={src} alt={caption || "image"} className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain" />
+      <img loading="lazy" src={src} alt={caption || "image"} className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain" />
     </div>
   );
 };
 
-const VoiceBubble = ({ src }) => {
+const VoiceBubble = React.memo(function VoiceBubble({ src }) {
   const audioRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [cur, setCur] = useState(0);
@@ -2444,9 +2557,9 @@ const VoiceBubble = ({ src }) => {
       <audio ref={audioRef} src={src} preload="metadata" className="hidden" />
     </div>
   );
-};
+});
 
-const FileBubble = ({ url, fileName, size }) => {
+const FileBubble = React.memo(function FileBubble({ url, fileName, size }) {
   const name = fileName || url?.split("/").pop() || "File";
   return (
     <div className="flex items-center gap-3 p-2 rounded-xl bg-black/10">
@@ -2465,14 +2578,15 @@ const FileBubble = ({ url, fileName, size }) => {
       )}
     </div>
   );
-};
+});
 
-const ImageBubble = ({ url, fileName }) => {
+const ImageBubble = React.memo(function ImageBubble({ url, fileName }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <div className="overflow-hidden rounded-xl border border-white/10 bg-black/10">
         <img
+          loading="lazy"
           src={url}
           alt={fileName || "image"}
           className="max-h-72 object-cover cursor-zoom-in max-w-[min(80vw,420px)]"
@@ -2490,7 +2604,7 @@ const ImageBubble = ({ url, fileName }) => {
       <Lightbox open={open} src={url} onClose={() => setOpen(false)} caption={fileName} />
     </>
   );
-};
+});
 
 /* ---------- safe back helper ---------- */
 const useSafeBack = () => {
@@ -2511,7 +2625,6 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
 
   const socket = GetSocket();
 
-  // unify on "userData" key everywhere
   const [userLS] = useLocalStorage({ key: "userData" });
   const myId = useMemo(() => userLS?._id || null, [userLS]);
 
@@ -2526,6 +2639,7 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
   const [groups, setGroups] = useState([]);
   const [searchQ, setSearchQ] = useState("");
   const [loadingGroups, setLoadingGroups] = useState(false);
+  const [firstLoad, setFirstLoad] = useState(true);
 
   /* message actions */
   const [openMenuFor, setOpenMenuFor] = useState(null);
@@ -2580,6 +2694,19 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
   const [showVoiceOriginalMap, setShowVoiceOriginalMap] = useState({});
   const [translatingMessageId, setTranslatingMessageId] = useState(null);
 
+  /* ======== WINDOWED RENDERING for big threads ======== */
+  const WINDOW = 200;
+  const STEP = 200;
+  const [startIdx, setStartIdx] = useState(0);
+
+  const visibleMessages = useMemo(() => {
+    const n = Array.isArray(messages) ? messages.length : 0;
+    if (n <= WINDOW) return messages || [];
+    const start = Math.max(0, n - WINDOW - startIdx);
+    const end = n - startIdx;
+    return (messages || []).slice(start, end);
+  }, [messages, startIdx]);
+
   useEffect(() => {
     if (!Array.isArray(messages)) setMessages(Array.isArray(messages) ? messages : []);
   }, [messages]);
@@ -2598,7 +2725,14 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
       setLoadingGroups(false);
     }
   };
-  useEffect(() => { loadMyGroups(); }, []);
+
+  useEffect(() => {
+    (async () => {
+      await loadMyGroups();
+      setFirstLoad(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* modal control: open only when ?new=1 */
   useEffect(() => {
@@ -2738,24 +2872,18 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
         return m;
       });
 
-      if (!replaced) next = [...next, savedMsg];
+      if (!replaced) next = appendChrono(prevArr, savedMsg);
 
-      return next.sort(
-        (a, b) =>
-          new Date(a.createdAt || a.timestamp || 0) - new Date(b.createdAt || b.timestamp || 0)
-      );
+      return next;
     });
   }, []);
 
   const appendIncomingMessage = useCallback((incoming) => {
     const normalized = normalizeMessage(incoming);
     if (!normalized) return;
-    setMessages((prev) => {
-      const prevArr = Array.isArray(prev) ? prev : [];
-      if (normalized._id && prevArr.find((m) => m._id === normalized._id)) return prevArr;
-      return dedupeMessages([...prevArr, normalized]);
-    });
+    setMessages((prev) => appendChrono(Array.isArray(prev) ? prev : [], normalized));
   }, []);
+
 
   /* open group */
   const openGroup = async (groupId) => {
@@ -2764,6 +2892,7 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
       setActive(null);
       setMessages([]);
       setSeenByMap({});
+      setStartIdx(0);
       const { data } = await http.get(`/api/groups/${groupId}`);
       const group = data?.group;
       const initialMessages = data?.messages || data?.groupMessages || [];
@@ -2783,6 +2912,7 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
       toast.error(err?.response?.data?.message || "Failed to load group");
     }
   };
+  
 
   /* sockets */
   useEffect(() => {
@@ -2918,21 +3048,25 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
     };
   }, [socket, active, replaceOptimisticWithSaved, settingsOpen, fetchPastMembers]);
 
-  /* auto scroll + mark seen when at bottom */
+  /* auto scroll + mark seen when at bottom, optimized for windowed list */
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const behavior = (visibleMessages?.length || 0) > 150 ? "auto" : "smooth";
+    messagesEndRef.current?.scrollIntoView({ behavior });
+
     const el = listRef.current;
     if (!el) return;
     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 48;
     if (nearBottom) emitSeenGroup();
-  }, [messages, emitSeenGroup]);
+  }, [visibleMessages, emitSeenGroup]);
 
+  /* close kebab on outside click (mousedown = earlier) */
   useEffect(() => {
     const close = () => setOpenMenuFor(null);
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
   }, []);
 
+  /* on scroll, update seen if near bottom */
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
@@ -2941,10 +3075,11 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
         emitSeenGroup();
       }
     };
-    el.addEventListener("scroll", onScroll);
+    el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
   }, [emitSeenGroup]);
 
+  /* on window focus, emit seen */
   useEffect(() => {
     const onFocus = () => emitSeenGroup();
     window.addEventListener("focus", onFocus);
@@ -2980,6 +3115,7 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
     if (sending) return;
     const text = newMsg.trim();
     setSending(true);
+    setShowEmoji(false);
 
     const clientNonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -2995,7 +3131,7 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
       __temp: true,
       clientNonce,
     });
-    setMessages((prev) => dedupeMessages([...(Array.isArray(prev) ? prev : []), optimistic]));
+    setMessages((prev) => appendChrono(Array.isArray(prev) ? prev : [], optimistic));
     setNewMsg("");
 
     try {
@@ -3059,7 +3195,7 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
         clientNonce,
       });
 
-      setMessages((prev) => dedupeMessages([...(Array.isArray(prev) ? prev : []), optimistic]));
+      setMessages((prev) => appendChrono(Array.isArray(prev) ? prev : [], optimistic));
 
       socket.emit("newGroupMsg", serverPayload, (ack) => {
         if (ack && ack.savedMessage) replaceOptimisticWithSaved(ack.savedMessage);
@@ -3320,7 +3456,7 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
     return Math.max(members.filter((u) => String(getId(u)) !== String(senderId)).length, 0);
   };
 
-  const SeenTicks = ({ m, isMe }) => {
+  const SeenTicks = React.memo(function SeenTicks({ m, isMe }) {
     if (!isMe || !m._id) return null;
 
     const totalOthers = everyoneElseCountFor(m);
@@ -3332,56 +3468,52 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
         {allSeen ? <CheckCheck size={12} /> : <Check size={12} />}
       </span>
     );
-  };
+  });
 
-  const ChatHeader = () => (
-    <div className="h-14 px-2 sm:px-4 border-b border-zinc-800 flex items-center justify-between">
-      <div className="flex items-center gap-3 min-w-0">
-        {!embedded && (
-          <button className="lg:hidden p-2 rounded-lg hover:bg-zinc-800" onClick={() => setShowLeft(true)} title="Groups">
-            <ChevronLeft />
-          </button>
-        )}
-        {embedded && (
-          <button className="p-2 rounded-lg hover:bg-zinc-800" onClick={() => safeBack("/g")} title="Back">
-            <ChevronLeft />
-          </button>
-        )}
-        <img src={active.profilePic || "/group-placeholder.png"} alt="" className="w-9 h-9 rounded-full object-cover" />
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <h2 className="font-semibold truncate">{active.name}</h2>
-            {amAdmin && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-700/40">Admin</span>
-            )}
+  const ChatHeader = React.memo(function ChatHeader() {
+    return (
+      <div className="h-14 px-2 sm:px-4 border-b border-zinc-800 flex items-center justify-between">
+        <div className="flex items-center gap-3 min-w-0">
+          {!embedded && (
+            <button className="lg:hidden p-2 rounded-lg hover:bg-zinc-800" onClick={() => setShowLeft(true)} title="Groups">
+              <ChevronLeft />
+            </button>
+          )}
+          {embedded && (
+            <button className="p-2 rounded-lg hover:bg-zinc-800" onClick={() => safeBack("/g")} title="Back">
+              <ChevronLeft />
+            </button>
+          )}
+          <img loading="lazy" src={active.profilePic || "/group-placeholder.png"} alt="" className="w-9 h-9 rounded-full object-cover" />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <h2 className="font-semibold truncate">{active.name}</h2>
+              {amAdmin && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-700/40">Admin</span>
+              )}
+            </div>
+            <div className="text-xs text-zinc-500 truncate">Created by {active?.createdBy?.name || active?.createdBy?.email || "—"}</div>
           </div>
-          <div className="text-xs text-zinc-500 truncate">Created by {active?.createdBy?.name || active?.createdBy?.email || "—"}</div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button className="lg:hidden p-2 rounded-lg hover:bg-zinc-800" onClick={() => setShowMembersMobile(true)} title="Info">
+            <Info />
+          </button>
+
+          <button onClick={() => setSettingsOpen(true)} className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm">
+            <SettingsIcon size={16} />
+          </button>
+
+          {amAdmin && (
+            <button onClick={() => setPickerOpen(true)} className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-green-500 text-white text-sm">
+              <UserPlus size={16} /> 
+            </button>
+          )}
         </div>
       </div>
-
-      <div className="flex items-center gap-2">
-        <button className="lg:hidden p-2 rounded-lg hover:bg-zinc-800" onClick={() => setShowMembersMobile(true)} title="Info">
-          <Info />
-        </button>
-
-        <button onClick={() => setSettingsOpen(true)} className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm">
-          <SettingsIcon size={16} /> Settings
-        </button>
-
-        {/* {amAdmin && (
-          <button onClick={() => setConfirmDelete(true)} className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-500 text-white text-sm">
-            <Trash2 size={16} /> Delete
-          </button>
-        )} */}
-
-        {amAdmin && (
-          <button onClick={() => setPickerOpen(true)} className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-green-500 text-white text-sm">
-            <UserPlus size={16} /> Add
-          </button>
-        )}
-      </div>
-    </div>
-  );
+    );
+  });
 
   return (
     <div className="min-h-screen h-screen bg-[#0b0d11] text-zinc-100 flex">
@@ -3423,7 +3555,7 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
           </div>
 
           <div className="overflow-y-auto h-[calc(100vh-112px)]">
-            {loadingGroups && <p className="p-3 text-zinc-400">Loading…</p>}
+            {firstLoad && loadingGroups && <p className="p-3 text-zinc-400">Loading…</p>}
             {!loadingGroups && !groups.length && <p className="p-3 text-zinc-500">No groups yet</p>}
             {groups.map((g) => {
               const isActive = active?._id === g._id;
@@ -3435,11 +3567,11 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
                   className={`w-full text-left px-4 py-3 border-b border-zinc-900 hover:bg-zinc-900/60 transition ${isActive ? "bg-zinc-900/70" : ""}`}
                 >
                   <div className="flex items-center gap-3">
-                    <img src={g.profilePic || "/group-placeholder.png"} alt="" className="w-10 h-10 rounded-full object-cover" />
+                    <img loading="lazy" src={g.profilePic || "/group-placeholder.png"} alt="" className="w-10 h-10 rounded-full object-cover" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <div className="font-medium truncate">{g.name}</div>
-                        {isAdminOfGroup(g, myId) && <Crown size={14} className="text-yellow-500" title="You are admin" />}
+                        {isAdminOfGroup(g, myId) && <Crown size={12} className="text-yellow-500" title="You are admin" />}
                       </div>
                       <div className="text-xs text-zinc-500 flex items-center gap-2">
                         <span className="truncate">{g.lastMessage?.text || "No messages yet"}</span>
@@ -3480,12 +3612,23 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
               {/* messages column */}
               <div className="flex-1 min-w-0 border-r border-zinc-800 flex flex-col">
                 <div ref={listRef} className="flex-1 overflow-y-auto p-3 sm:p-4 bg-[#070809]">
-                  {(!messages || (Array.isArray(messages) && messages.length === 0)) && (
+                  {Array.isArray(messages) && messages.length > WINDOW && (messages.length - startIdx - visibleMessages.length > 0) && (
+                    <div className="flex justify-center mb-2">
+                      <button
+                        onClick={() => setStartIdx((s) => s + STEP)}
+                        className="px-3 py-1.5 text-xs rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200"
+                      >
+                        Load older messages
+                      </button>
+                    </div>
+                  )}
+
+                  {(!visibleMessages || visibleMessages.length === 0) && (
                     <p className="text-zinc-500">No messages yet — say hi 👋</p>
                   )}
 
-                  {Array.isArray(messages) &&
-                    messages.map((m, i) => {
+                  {Array.isArray(visibleMessages) &&
+                    visibleMessages.map((m, i) => {
                       // skip messages the current user deleted-for-me
                       if (Array.isArray(m.deletedFor) && m.deletedFor.some(x => String(x) === String(myId))) {
                         return null;
@@ -3496,12 +3639,32 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
                       const isMe = String(senderId) === String(myId);
                       const time = fmtTime(m.createdAt || m.timestamp || new Date());
 
-                      const wrap = isMe ? "text-right" : "text-left";
-                      const bubble = isMe ? "bg-emerald-700 text-white" : "bg-[#1f2c34] text-zinc-100";
+                     const wrap = isMe ? "text-right" : "text-left";
+
+// message type + emoji detection
+const type = m.messageType || "text";
+const isText = !m.messageType || m.messageType === "text";
+const originalText = getTextFromMessage(m) || "";
+const emojiOnly = isText && isEmojiOnly((originalText || "").trim());
+
+// bubble color becomes transparent for emoji-only
+const bubble = emojiOnly
+  ? "bg-transparent text-zinc-100"
+  : isMe
+  ? "bg-emerald-700 text-white"
+  : "bg-[#1f2c34] text-zinc-100";
+
 
                       return (
                         <div key={m._id || `i-${i}`} className={`mb-2 sm:mb-3 ${wrap}`}>
-                          <div className={`group relative inline-block px-3 py-2 rounded-2xl max-w-[85%] sm:max-w-[75%] break-words ${bubble}`}>
+<div
+  className={[
+    "group relative inline-block rounded-2xl break-words",
+    "max-w-[85%] sm:max-w-[75%]",
+    emojiOnly ? "px-2 py-1" : "px-3 py-2",
+    bubble,
+  ].join(" ")}
+>
                             {/* kebab */}
                             <button
                               onClick={(e) => { e.stopPropagation(); setOpenMenuFor(openMenuFor === m._id ? null : m._id); }}
@@ -3558,46 +3721,58 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
                             ) : (
                               <>
                                 {/* text */}
-                                {(!m.messageType || m.messageType === "text") && (
-                                  <div className="whitespace-pre-wrap">
-                                    {(() => {
-                                      const rawText = getTextFromMessage(m);
-                                      const hasTrans = !!m.translatedText;
-                                      const canAsk = !isMe && !isEmojiOnly(rawText);
+                               {isText && (
+  <div
+    className={
+      emojiOnly
+        ? "text-5xl leading-[1] text-center py-1 select-none"
+        : "whitespace-pre-wrap text-[15px] leading-6"
+    }
+  >
+    {(() => {
+      const hasTrans = !!m.translatedText;
+      const canAsk = !isMe && !emojiOnly;
 
-                                      return (
-                                        <>
-                                          {hasTrans && canAsk
-                                            ? (showOriginalMap[m._id] ? safeText(rawText) : safeText(m.translatedText))
-                                            : safeText(rawText)}
-                                          {canAsk && (
-                                            <div className="text-[11px] mt-1 opacity-80">
-                                              {hasTrans ? (
-                                                <button
-                                                  onClick={() =>
-                                                    setShowOriginalMap((map) => ({ ...map, [m._id]: !map[m._id] }))
-                                                  }
-                                                  className="underline"
-                                                >
-                                                  {showOriginalMap[m._id] ? "Show translation" : "Show original"}
-                                                </button>
-                                              ) : (
-                                                <button
-                                                  onClick={() => requestGroupTranslation(m._id)}
-                                                  className="underline"
-                                                  disabled={translatingMessageId === m._id}
-                                                >
-                                                  {translatingMessageId === m._id ? "Translating…" : "Translate"}
-                                                </button>
-                                              )}
-                                            </div>
-                                          )}
-                                          {m.isEdited && <span className="ml-1 text-[10px] opacity-70">(edited)</span>}
-                                        </>
-                                      );
-                                    })()}
-                                  </div>
-                                )}
+      const display = hasTrans && canAsk
+        ? (showOriginalMap[m._id] ? safeText(originalText) : safeText(m.translatedText))
+        : safeText(originalText);
+
+      return (
+        <>
+          {display}
+
+          {!emojiOnly && canAsk && (
+            <div className="text-[11px] mt-1 opacity-80">
+              {hasTrans ? (
+                <button
+                  onClick={() =>
+                    setShowOriginalMap((map) => ({ ...map, [m._id]: !map[m._id] }))
+                  }
+                  className="underline"
+                >
+                  {showOriginalMap[m._id] ? "Show translation" : "Show original"}
+                </button>
+              ) : (
+                <button
+                  onClick={() => requestGroupTranslation(m._id)}
+                  className="underline"
+                  disabled={translatingMessageId === m._id}
+                >
+                  {translatingMessageId === m._id ? "Translating…" : "Translate"}
+                </button>
+              )}
+            </div>
+          )}
+
+          {!emojiOnly && m.isEdited && (
+            <span className="ml-1 text-[10px] opacity-70">(edited)</span>
+          )}
+        </>
+      );
+    })()}
+  </div>
+)}
+
 
                                 {/* media */}
                                 {m.messageType === "image" && m.url && <ImageBubble url={m.url} fileName={m.fileName} />}
@@ -3766,7 +3941,7 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
                     <div className="mt-3 flex items-center gap-2">
                       {amAdmin && !isAdmin && (
                         <>
-                          <button onClick={() => makeAdmin(id)} className="px-2.5 py-1 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-white text-xs">Make Admin</button>
+                          <button onClick={() => makeAdmin(id)} className="px-2 py-0.5 rounded bg-yellow-600 text-xs">Make Admin</button>
                           <button onClick={() => removeMember(id)} className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs">Remove</button>
                         </>
                       )}
@@ -3816,7 +3991,7 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
           <div>
             <label className="block text-sm mb-1 text-zinc-300">Group Photo</label>
             <input type="file" accept="image/*" onChange={(e) => onPickPhoto(e.target.files?.[0] || null)} />
-            {gPhotoPreview && <img src={gPhotoPreview} alt="preview" className="w-16 h-16 rounded-full object-cover mt-2" />}
+            {gPhotoPreview && <img loading="lazy" src={gPhotoPreview} alt="preview" className="w-16 h-16 rounded-full object-cover mt-2" />}
           </div>
           <div>
             <label className="block text-sm mb-1 text-zinc-300">Members</label>
@@ -3830,15 +4005,15 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
         </div>
       </Modal>
 
-      {/* MemberPicker (works for both Create and Settings) */}
+      {/* MemberPicker */}
       <MemberPicker
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
         onSubmit={async (picked) => {
           if (!picked.length) return toast("ℹ️ No members selected");
-          setGMembers(picked);           // used by create modal
+          setGMembers(picked);           // create modal
           setPickerOpen(false);
-          if (!active) return;           // if no active group, we’re in create flow; done here
+          if (!active) return;           // in create flow; nothing more to do
           try {
             const ids = picked.map((p) => p._id);
             await Promise.all(
@@ -3858,7 +4033,7 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
         ]}
       />
 
-      {/* settings modal */}
+      {/* settings modal — RESTYLED ONLY (no functionality changes) */}
       <Modal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
@@ -3868,12 +4043,12 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
           <div className="flex justify-end w-full gap-2">
             {amAdmin && (
               <>
-                <button
+                {/* <button
                   onClick={() => setPickerOpen(true)}
                   className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white"
                 >
                   Add Members
-                </button>
+                </button> */}
                 <button
                   onClick={async () => {
                     const nextName = (settingsDraft.name ?? "").trim();
@@ -3891,7 +4066,7 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
                     }
                     await updateGroup(changed);
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white"
+                  className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white"
                 >
                   Save Changes
                 </button>
@@ -3902,155 +4077,248 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
       >
         {!active ? null : (
           <div className="space-y-6">
-            {/* basics */}
-            <section>
-              <h4 className="text-sm font-semibold text-zinc-300 mb-2">Basic Info</h4>
-              <div className="flex items-center gap-4">
+            {/* header summary card */}
+            <div className="rounded-2xl border border-zinc-700 bg-[#0e1013] p-4">
+              <div className="flex items-start gap-4">
                 <img
+                  loading="lazy"
                   src={settingsDraft.profilePic || active?.profilePic || "/group-placeholder.png"}
                   alt="group"
-                  className="w-16 h-16 rounded-full object-cover border border-zinc-700"
+                  className="w-16 h-16 rounded-xl object-cover border border-zinc-700"
                 />
-                <div className="space-y-2 flex-1">
-                  <input
-                    value={settingsDraft.name}
-                    onChange={(e) => setSettingsDraft((s) => ({ ...s, name: e.target.value }))}
-                    className="w-full bg-[#0e1013] border border-zinc-700 rounded-xl px-3 py-2 text-zinc-200 outline-none focus:border-zinc-500"
-                    placeholder="Group name"
-                    disabled={!amAdmin}
-                  />
-                  {amAdmin && (
-                    <div className="flex items-center gap-2 text-sm">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-base font-semibold text-zinc-100 truncate">{active?.name}</h4>
+                    {amAdmin && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-700/40">
+                        Admin
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    Created by {active?.createdBy?.name || active?.createdBy?.email || "—"} • {active?.members?.length || 0} members
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* two-column layout */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* left column: basic info */}
+              <section className="md:col-span-1 space-y-4">
+                <div className="rounded-2xl border border-zinc-700 bg-[#0e1013] p-4">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-sm font-semibold text-zinc-200">Basic Info</h5>
+                    {!amAdmin && <span className="text-[10px] text-zinc-500">Read only</span>}
+                  </div>
+
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <label className="block text-xs mb-1 text-zinc-400">Group Name</label>
                       <input
-                        type="file"
-                        accept="image/*"
-                        onChange={async (e) => {
-                          const f = e.target.files?.[0];
-                          if (!f) return;
-                          try {
-                            const t = toast.loading("Uploading photo...");
-                            const res = await uploadFile(f);
-                            toast.dismiss(t);
-                            const url = res?.secure_url;
-                            if (!url) throw new Error("Upload failed");
-                            setSettingsDraft((s) => ({ ...s, profilePic: url }));
-                            toast.success("Photo ready. Click Save Changes.");
-                          } catch {
-                            toast.error("Photo upload failed");
-                          }
-                        }}
+                        value={settingsDraft.name}
+                        onChange={(e) => setSettingsDraft((s) => ({ ...s, name: e.target.value }))}
+                        className="w-full bg-[#0b0d11] border border-zinc-700 rounded-xl px-3 py-2 text-zinc-200 outline-none focus:border-zinc-500"
+                        placeholder="Group name"
+                        disabled={!amAdmin}
                       />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs mb-1 text-zinc-400">Profile Photo</label>
+                      <div className="flex items-center gap-3">
+                        <img
+                          loading="lazy"
+                          src={settingsDraft.profilePic || active?.profilePic || "/group-placeholder.png"}
+                          alt="preview"
+                          className="w-12 h-12 rounded-lg object-cover border border-zinc-700"
+                        />
+                        {amAdmin ? (
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="text-xs file:mr-3 file:rounded-lg file:border-0 file:px-3 file:py-1.5 file:bg-zinc-800 file:text-zinc-200 hover:file:bg-zinc-700"
+                            onChange={async (e) => {
+                              const f = e.target.files?.[0];
+                              if (!f) return;
+                              try {
+                                const t = toast.loading("Uploading photo...");
+                                const res = await uploadFile(f);
+                                toast.dismiss(t);
+                                const url = res?.secure_url;
+                                if (!url) throw new Error("Upload failed");
+                                setSettingsDraft((s) => ({ ...s, profilePic: url }));
+                                toast.success("Photo ready. Click Save Changes.");
+                              } catch {
+                                toast.error("Photo upload failed");
+                              }
+                            }}
+                          />
+                        ) : (
+                          <span className="text-xs text-zinc-500">Only admins can update</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-zinc-700 bg-[#0e1013] p-4">
+                  <h5 className="text-sm font-semibold text-zinc-200"></h5>
+              
+                  {/* <div className="mt-3 flex flex-wrap gap-2">
+                    {!amAdmin && (
+                      <button onClick={() => setConfirmLeave(true)} className="px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600">
+                        <LogOut className="inline mr-1" size={14} /> Leave Group
+                      </button>
+                    )}
+                    {amAdmin && (
+                      <button onClick={() => setConfirmDelete(true)} className="px-3 py-1.5 rounded-lg border border-amber-600 text-amber-400 hover:bg-amber-600/10">
+                        <Trash2 className="inline mr-1" size={14} /> Delete Group
+                      </button>
+                    )}
+                  </div> */}
+                  <div className="mt-3 flex flex-wrap gap-2">
+  {!amAdmin && (
+    <button
+      onClick={() => setConfirmLeave(true)}
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl
+                 bg-zinc-800 text-zinc-200 text-sm font-medium
+                 ring-1 ring-zinc-700/50 shadow-sm
+                 hover:bg-zinc-700 hover:text-white
+                 transition-all duration-150 ease-in-out"
+    >
+      <LogOut size={14} className="text-zinc-400" />
+      Leave Group
+    </button>
+  )}
+  
+  {amAdmin && (
+    <button
+      onClick={() => setConfirmDelete(true)}
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl
+                 bg-transparent text-amber-400 text-sm font-medium
+                 border border-amber-600/40 ring-1 ring-amber-700/30
+                 hover:bg-amber-600/10 hover:text-amber-300
+                 transition-all duration-150 ease-in-out"
+    >
+      <Trash2 size={14} className="text-amber-400" />
+      Delete Group
+    </button>
+  )}
+</div>
+
+                </div>
+              </section>
+
+              {/* right column: members + past members */}
+              <section className="md:col-span-2 space-y-4">
+                <div className="rounded-2xl border border-zinc-700 bg-[#0e1013] p-4">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-sm font-semibold text-zinc-200">Members</h5>
+                    {amAdmin && (
+                      <button
+                        onClick={() => setPickerOpen(true)}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs"
+                      >
+                        <UserPlus size={14} className="inline mr-1" />
+                        
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-2 mt-3 max-h-72 overflow-y-auto pr-1">
+                    {active?.members?.map((m) => {
+                      const isAdminMember = isAdminOfGroup(active, m);
+                      const id = getId(m);
+                      return (
+                        <div
+                          key={id}
+                          className="flex items-center justify-between bg-[#0b0d11] p-2 rounded-lg border border-zinc-700"
+                        >
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{m.name || m.email}</div>
+                            <div className="text-xs text-zinc-500 truncate">{m.email}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isAdminMember && (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-3 py-1 rounded-full bg-yellow-400/20 text-yellow-400 border border-yellow-700/40">
+    <Crown size={12} className="mr-1" />Admin
+                              </span>
+                            )}
+                            {amAdmin && !isAdminMember && (
+                              <>
+                               <button
+  onClick={() => makeAdmin(id)}
+  className="px-2 py-0.5 inline bg-emerald-700 rounded-full hover:bg-emerald-600 text-zinc-100 text-[11px] whitespace-nowrap"
+>
+  Make Admin
+</button>
+
+                                <button onClick={() => removeMember(id)} className="px-2 py-0.5 bg-zinc-700 rounded-full hover:bg-zinc-600 text-zinc-100 text-[11px]">
+                                  Remove
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {!active?.members?.length && (
+                      <p className="text-sm text-zinc-500">No members yet.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-zinc-700 bg-[#0e1013] p-4">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-sm font-semibold text-zinc-200">Past Members</h5>
+                    <button className="text-xs underline" onClick={() => fetchPastMembers(active._id)}>
+                      Refresh
+                    </button>
+                  </div>
+                  {!pastMembers?.length ? (
+                    <p className="text-sm text-zinc-500 mt-2">No past members found.</p>
+                  ) : (
+                    <div className="grid sm:grid-cols-2 gap-2 mt-3 max-h-48 overflow-y-auto pr-1">
+                      {pastMembers.map((m) => {
+                        const id = getId(m) || m?.user?._id;
+                        return (
+                          <div
+                            key={id}
+                            className="flex items-center justify-between bg-[#0b0d11] p-2 rounded-lg border border-zinc-700"
+                          >
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">{m.name || m.email}</div>
+                              <div className="text-xs text-zinc-500 truncate">{m.email}</div>
+                            </div>
+                            {amAdmin && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await http.put("/api/groups/add-member", {
+                                      groupId: active._id,
+                                      userId: id,
+                                    });
+                                    toast.success("Re-added to group");
+                                    openGroup(active._id);
+                                    fetchPastMembers(active._id);
+                                  } catch {
+                                    toast.error("Failed to re-add");
+                                  }
+                                }}
+                                className="px-2 py-0.5 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-[11px]"
+                              >
+                                Re-add
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
-              </div>
-            </section>
-
-            {/* members */}
-            <section>
-              <h4 className="text-sm font-semibold text-zinc-300 mb-2">Members</h4>
-              <div className="grid sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto">
-                {active?.members?.map((m) => {
-                  const isAdminMember = isAdminOfGroup(active, m);
-                  const id = getId(m);
-                  return (
-                    <div
-                      key={id}
-                      className="flex items-center justify-between bg-[#0e1013] p-2 rounded border border-zinc-700"
-                    >
-                      <div className="min-w-0">
-                        <div className="font-medium truncate">{m.name || m.email}</div>
-                        <div className="text-xs text-zinc-500 truncate">{m.email}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {isAdminMember && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-700/40">
-                            <Crown size={12} className="inline mr-1" /> Admin
-                          </span>
-                        )}
-                        {amAdmin && !isAdminMember && (
-                          <>
-                            <button onClick={() => makeAdmin(id)} className="px-2 py-0.5 rounded bg-yellow-600 text-xs">
-                              Make Admin
-                            </button>
-                            <button onClick={() => removeMember(id)} className="px-2 py-0.5 rounded bg-red-600 text-xs">
-                              Remove
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-
-            {/* past members */}
-            <section>
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-zinc-300">Past Members</h4>
-                <button className="text-xs underline" onClick={() => fetchPastMembers(active._id)}>
-                  Refresh
-                </button>
-              </div>
-              {!pastMembers?.length ? (
-                <p className="text-sm text-zinc-500 mt-1">No past members found.</p>
-              ) : (
-                <div className="grid sm:grid-cols-2 gap-2 mt-2 max-h-48 overflow-y-auto">
-                  {pastMembers.map((m) => {
-                    const id = getId(m) || m?.user?._id;
-                    return (
-                      <div
-                        key={id}
-                        className="flex items-center justify-between bg-[#0e1013] p-2 rounded border border-zinc-700"
-                      >
-                        <div className="min-w-0">
-                          <div className="font-medium truncate">{m.name || m.email}</div>
-                          <div className="text-xs text-zinc-500 truncate">{m.email}</div>
-                        </div>
-                        {amAdmin && (
-                          <button
-                            onClick={async () => {
-                              try {
-                                await http.put("/api/groups/add-member", {
-                                  groupId: active._id,
-                                  userId: id,
-                                });
-                                toast.success("Re-added to group");
-                                openGroup(active._id);
-                                fetchPastMembers(active._id);
-                              } catch {
-                                toast.error("Failed to re-add");
-                              }
-                            }}
-                            className="px-2 py-0.5 rounded bg-emerald-700 text-xs"
-                          >
-                            Re-add
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-
-            {/* danger zone */}
-            <section className="pt-2 border-top border-zinc-800">
-              <h4 className="text-sm font-semibold text-zinc-300 mb-2">Danger Zone</h4>
-              <div className="flex flex-wrap gap-2">
-                {!amAdmin && (
-                  <button onClick={() => setConfirmLeave(true)} className="px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600">
-                    <LogOut className="inline mr-1" size={14} /> Leave Group
-                  </button>
-                )}
-                {amAdmin && (
-                  <button onClick={() => setConfirmDelete(true)} className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white">
-                    <Trash2 className="inline mr-1" size={14} /> Delete Group
-                  </button>
-                )}
-              </div>
-            </section>
+              </section>
+            </div>
           </div>
         )}
       </Modal>
@@ -4062,7 +4330,7 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
         onConfirm={deleteGroup}
         title="Delete Group"
         message="Are you sure you want to delete this group? This action cannot be undone."
-        danger
+        
       />
       <Confirm
         open={confirmLeave}
