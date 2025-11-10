@@ -55,3 +55,4 @@ const ChatSearch = ({ chats, onSelectChat }) => {
 };
 
 export default ChatSearch;
+

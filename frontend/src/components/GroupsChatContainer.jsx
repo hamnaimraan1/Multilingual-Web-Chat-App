@@ -1,5 +1,4 @@
 
-
 // import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // import { useLocalStorage } from "@mantine/hooks";
 // import {
@@ -28,6 +27,8 @@
 //   Trash as TrashIcon
 // } from "lucide-react";
 // import { GetSocket } from "../utils/Sockets";
+// import ChatDayDivider, { isSameDay } from "./ChatDayDivider";
+
 // import http from "../utils/http";
 // import toast, { Toaster } from "react-hot-toast";
 // import uploadFile from "../utils/uploadFile";
@@ -129,8 +130,52 @@
 // };
 
 // const EMOJIS = [
-//   "😀","😁","😂","🤣","😃","😄","😅","😆","😉","😊","🙂","🙃","😋","😎","😍","😘","😗","😙","😚","🥰","🥲","😇","🤩","🥳","😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤗","🤔","🤭","🤫","🤥","😶","😐","😑","🫠","🙄","😬","😮‍💨","🤤","😴","😪","😮","😯","😲","😦","😧","😵","🥴","🤐","🤢","🤮","🤧","😷","🤕","🤒","🤑","🤠","🥸","👍","👎","👌","✌️","🤞","🤟","🤘","🤙","💪","❤️","💛","💚","💙","💜","🖤","🤍","🤎","💖","💗","💓","💞","💕"
+//   "😀",
+//   "😁",
+//   "😂",
+//   "🤣",
+//   "😃",
+//   "😄",
+//   "😅",
+//   "😆",
+//   "😉",
+//   "😊",
+//   "🙂",
+//   "🙃",
+//   "😋",
+//   "😎",
+//   "😍",
+//   "😘",
+//   "🥰",
+//   "😇",
+//   "🤩",
+//   "🥳",
+//   "😏",
+//   "😒",
+//   "😞",
+//   "😔",
+//   "👍",
+//   "👎",
+//   "👌",
+//   "✌️",
+//   "🤞",
+//   "🤟",
+//   "🤘",
+//   "🤙",
+//   "🙏",
+//   "👏",
+//   "🙌",
+//   "🫶",
+//   "💪",
+//   "💖",
+//   "💬",
+//   "✅",
+//   "❌",
+//   "❗",
+//   "❓",
+//   "⚠️",
 // ];
+
 
 // const safeText = (v) => (typeof v === "string" ? v : "");
 // const EMOJI_RE = /^(?:\p{Emoji_Presentation}|\p{Extended_Pictographic}|\p{Emoji}|\s)+$/u;
@@ -754,6 +799,7 @@
 //     setMessages((prev) => appendChrono(Array.isArray(prev) ? prev : [], normalized));
 //   }, []);
 
+
 //   /* open group */
 //   const openGroup = async (groupId) => {
 //     if (!groupId) return;
@@ -781,6 +827,7 @@
 //       toast.error(err?.response?.data?.message || "Failed to load group");
 //     }
 //   };
+  
 
 //   /* sockets */
 //   useEffect(() => {
@@ -1370,12 +1417,12 @@
 //           </button>
 
 //           <button onClick={() => setSettingsOpen(true)} className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm">
-//             <SettingsIcon size={16} /> 
+//             <SettingsIcon size={16} />
 //           </button>
 
 //           {amAdmin && (
 //             <button onClick={() => setPickerOpen(true)} className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-green-500 text-white text-sm">
-//               <UserPlus size={16} /> Add
+//               <UserPlus size={16} /> 
 //             </button>
 //           )}
 //         </div>
@@ -1439,7 +1486,7 @@
 //                     <div className="flex-1 min-w-0">
 //                       <div className="flex items-center gap-2">
 //                         <div className="font-medium truncate">{g.name}</div>
-//                         {isAdminOfGroup(g, myId) && <Crown size={14} className="text-yellow-500" title="You are admin" />}
+//                         {isAdminOfGroup(g, myId) && <Crown size={12} className="text-yellow-500" title="You are admin" />}
 //                       </div>
 //                       <div className="text-xs text-zinc-500 flex items-center gap-2">
 //                         <span className="truncate">{g.lastMessage?.text || "No messages yet"}</span>
@@ -1507,12 +1554,32 @@
 //                       const isMe = String(senderId) === String(myId);
 //                       const time = fmtTime(m.createdAt || m.timestamp || new Date());
 
-//                       const wrap = isMe ? "text-right" : "text-left";
-//                       const bubble = isMe ? "bg-emerald-700 text-white" : "bg-[#1f2c34] text-zinc-100";
+//                      const wrap = isMe ? "text-right" : "text-left";
+
+// // message type + emoji detection
+// const type = m.messageType || "text";
+// const isText = !m.messageType || m.messageType === "text";
+// const originalText = getTextFromMessage(m) || "";
+// const emojiOnly = isText && isEmojiOnly((originalText || "").trim());
+
+// // bubble color becomes transparent for emoji-only
+// const bubble = emojiOnly
+//   ? "bg-transparent text-zinc-100"
+//   : isMe
+//   ? "bg-emerald-700 text-white"
+//   : "bg-[#1f2c34] text-zinc-100";
+
 
 //                       return (
 //                         <div key={m._id || `i-${i}`} className={`mb-2 sm:mb-3 ${wrap}`}>
-//                           <div className={`group relative inline-block px-3 py-2 rounded-2xl max-w-[85%] sm:max-w-[75%] break-words ${bubble}`}>
+// <div
+//   className={[
+//     "group relative inline-block rounded-2xl break-words",
+//     "max-w-[85%] sm:max-w-[75%]",
+//     emojiOnly ? "px-2 py-1" : "px-3 py-2",
+//     bubble,
+//   ].join(" ")}
+// >
 //                             {/* kebab */}
 //                             <button
 //                               onClick={(e) => { e.stopPropagation(); setOpenMenuFor(openMenuFor === m._id ? null : m._id); }}
@@ -1569,46 +1636,58 @@
 //                             ) : (
 //                               <>
 //                                 {/* text */}
-//                                 {(!m.messageType || m.messageType === "text") && (
-//                                   <div className="whitespace-pre-wrap">
-//                                     {(() => {
-//                                       const rawText = getTextFromMessage(m);
-//                                       const hasTrans = !!m.translatedText;
-//                                       const canAsk = !isMe && !isEmojiOnly(rawText);
+//                                {isText && (
+//   <div
+//     className={
+//       emojiOnly
+//         ? "text-5xl leading-[1] text-center py-1 select-none"
+//         : "whitespace-pre-wrap text-[15px] leading-6"
+//     }
+//   >
+//     {(() => {
+//       const hasTrans = !!m.translatedText;
+//       const canAsk = !isMe && !emojiOnly;
 
-//                                       return (
-//                                         <>
-//                                           {hasTrans && canAsk
-//                                             ? (showOriginalMap[m._id] ? safeText(rawText) : safeText(m.translatedText))
-//                                             : safeText(rawText)}
-//                                           {canAsk && (
-//                                             <div className="text-[11px] mt-1 opacity-80">
-//                                               {hasTrans ? (
-//                                                 <button
-//                                                   onClick={() =>
-//                                                     setShowOriginalMap((map) => ({ ...map, [m._id]: !map[m._id] }))
-//                                                   }
-//                                                   className="underline"
-//                                                 >
-//                                                   {showOriginalMap[m._id] ? "Show translation" : "Show original"}
-//                                                 </button>
-//                                               ) : (
-//                                                 <button
-//                                                   onClick={() => requestGroupTranslation(m._id)}
-//                                                   className="underline"
-//                                                   disabled={translatingMessageId === m._id}
-//                                                 >
-//                                                   {translatingMessageId === m._id ? "Translating…" : "Translate"}
-//                                                 </button>
-//                                               )}
-//                                             </div>
-//                                           )}
-//                                           {m.isEdited && <span className="ml-1 text-[10px] opacity-70">(edited)</span>}
-//                                         </>
-//                                       );
-//                                     })()}
-//                                   </div>
-//                                 )}
+//       const display = hasTrans && canAsk
+//         ? (showOriginalMap[m._id] ? safeText(originalText) : safeText(m.translatedText))
+//         : safeText(originalText);
+
+//       return (
+//         <>
+//           {display}
+
+//           {!emojiOnly && canAsk && (
+//             <div className="text-[11px] mt-1 opacity-80">
+//               {hasTrans ? (
+//                 <button
+//                   onClick={() =>
+//                     setShowOriginalMap((map) => ({ ...map, [m._id]: !map[m._id] }))
+//                   }
+//                   className="underline"
+//                 >
+//                   {showOriginalMap[m._id] ? "Show translation" : "Show original"}
+//                 </button>
+//               ) : (
+//                 <button
+//                   onClick={() => requestGroupTranslation(m._id)}
+//                   className="underline"
+//                   disabled={translatingMessageId === m._id}
+//                 >
+//                   {translatingMessageId === m._id ? "Translating…" : "Translate"}
+//                 </button>
+//               )}
+//             </div>
+//           )}
+
+//           {!emojiOnly && m.isEdited && (
+//             <span className="ml-1 text-[10px] opacity-70">(edited)</span>
+//           )}
+//         </>
+//       );
+//     })()}
+//   </div>
+// )}
+
 
 //                                 {/* media */}
 //                                 {m.messageType === "image" && m.url && <ImageBubble url={m.url} fileName={m.fileName} />}
@@ -1777,7 +1856,7 @@
 //                     <div className="mt-3 flex items-center gap-2">
 //                       {amAdmin && !isAdmin && (
 //                         <>
-//                           <button onClick={() => makeAdmin(id)} className="px-2.5 py-1 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-white text-xs">Make Admin</button>
+//                           <button onClick={() => makeAdmin(id)} className="px-2 py-0.5 rounded bg-yellow-600 text-xs">Make Admin</button>
 //                           <button onClick={() => removeMember(id)} className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs">Remove</button>
 //                         </>
 //                       )}
@@ -1869,7 +1948,7 @@
 //         ]}
 //       />
 
-//       {/* settings modal */}
+//       {/* settings modal — RESTYLED ONLY (no functionality changes) */}
 //       <Modal
 //         open={settingsOpen}
 //         onClose={() => setSettingsOpen(false)}
@@ -1879,12 +1958,12 @@
 //           <div className="flex justify-end w-full gap-2">
 //             {amAdmin && (
 //               <>
-//                 <button
+//                 {/* <button
 //                   onClick={() => setPickerOpen(true)}
 //                   className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white"
 //                 >
 //                   Add Members
-//                 </button>
+//                 </button> */}
 //                 <button
 //                   onClick={async () => {
 //                     const nextName = (settingsDraft.name ?? "").trim();
@@ -1902,7 +1981,7 @@
 //                     }
 //                     await updateGroup(changed);
 //                   }}
-//                   className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white"
+//                   className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white"
 //                 >
 //                   Save Changes
 //                 </button>
@@ -1913,156 +1992,248 @@
 //       >
 //         {!active ? null : (
 //           <div className="space-y-6">
-//             {/* basics */}
-//             <section>
-//               <h4 className="text-sm font-semibold text-zinc-300 mb-2">Basic Info</h4>
-//               <div className="flex items-center gap-4">
+//             {/* header summary card */}
+//             <div className="rounded-2xl border border-zinc-700 bg-[#0e1013] p-4">
+//               <div className="flex items-start gap-4">
 //                 <img
 //                   loading="lazy"
 //                   src={settingsDraft.profilePic || active?.profilePic || "/group-placeholder.png"}
 //                   alt="group"
-//                   className="w-16 h-16 rounded-full object-cover border border-zinc-700"
+//                   className="w-16 h-16 rounded-xl object-cover border border-zinc-700"
 //                 />
-//                 <div className="space-y-2 flex-1">
-//                   <input
-//                     value={settingsDraft.name}
-//                     onChange={(e) => setSettingsDraft((s) => ({ ...s, name: e.target.value }))}
-//                     className="w-full bg-[#0e1013] border border-zinc-700 rounded-xl px-3 py-2 text-zinc-200 outline-none focus:border-zinc-500"
-//                     placeholder="Group name"
-//                     disabled={!amAdmin}
-//                   />
-//                   {amAdmin && (
-//                     <div className="flex items-center gap-2 text-sm">
+//                 <div className="flex-1 min-w-0">
+//                   <div className="flex items-center gap-2">
+//                     <h4 className="text-base font-semibold text-zinc-100 truncate">{active?.name}</h4>
+//                     {amAdmin && (
+//                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-700/40">
+//                         Admin
+//                       </span>
+//                     )}
+//                   </div>
+//                   <p className="text-xs text-zinc-400 mt-1">
+//                     Created by {active?.createdBy?.name || active?.createdBy?.email || "—"} • {active?.members?.length || 0} members
+//                   </p>
+//                 </div>
+//               </div>
+//             </div>
+
+//             {/* two-column layout */}
+//             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+//               {/* left column: basic info */}
+//               <section className="md:col-span-1 space-y-4">
+//                 <div className="rounded-2xl border border-zinc-700 bg-[#0e1013] p-4">
+//                   <div className="flex items-center justify-between">
+//                     <h5 className="text-sm font-semibold text-zinc-200">Basic Info</h5>
+//                     {!amAdmin && <span className="text-[10px] text-zinc-500">Read only</span>}
+//                   </div>
+
+//                   <div className="mt-3 space-y-3">
+//                     <div>
+//                       <label className="block text-xs mb-1 text-zinc-400">Group Name</label>
 //                       <input
-//                         type="file"
-//                         accept="image/*"
-//                         onChange={async (e) => {
-//                           const f = e.target.files?.[0];
-//                           if (!f) return;
-//                           try {
-//                             const t = toast.loading("Uploading photo...");
-//                             const res = await uploadFile(f);
-//                             toast.dismiss(t);
-//                             const url = res?.secure_url;
-//                             if (!url) throw new Error("Upload failed");
-//                             setSettingsDraft((s) => ({ ...s, profilePic: url }));
-//                             toast.success("Photo ready. Click Save Changes.");
-//                           } catch {
-//                             toast.error("Photo upload failed");
-//                           }
-//                         }}
+//                         value={settingsDraft.name}
+//                         onChange={(e) => setSettingsDraft((s) => ({ ...s, name: e.target.value }))}
+//                         className="w-full bg-[#0b0d11] border border-zinc-700 rounded-xl px-3 py-2 text-zinc-200 outline-none focus:border-zinc-500"
+//                         placeholder="Group name"
+//                         disabled={!amAdmin}
 //                       />
+//                     </div>
+
+//                     <div>
+//                       <label className="block text-xs mb-1 text-zinc-400">Profile Photo</label>
+//                       <div className="flex items-center gap-3">
+//                         <img
+//                           loading="lazy"
+//                           src={settingsDraft.profilePic || active?.profilePic || "/group-placeholder.png"}
+//                           alt="preview"
+//                           className="w-12 h-12 rounded-lg object-cover border border-zinc-700"
+//                         />
+//                         {amAdmin ? (
+//                           <input
+//                             type="file"
+//                             accept="image/*"
+//                             className="text-xs file:mr-3 file:rounded-lg file:border-0 file:px-3 file:py-1.5 file:bg-zinc-800 file:text-zinc-200 hover:file:bg-zinc-700"
+//                             onChange={async (e) => {
+//                               const f = e.target.files?.[0];
+//                               if (!f) return;
+//                               try {
+//                                 const t = toast.loading("Uploading photo...");
+//                                 const res = await uploadFile(f);
+//                                 toast.dismiss(t);
+//                                 const url = res?.secure_url;
+//                                 if (!url) throw new Error("Upload failed");
+//                                 setSettingsDraft((s) => ({ ...s, profilePic: url }));
+//                                 toast.success("Photo ready. Click Save Changes.");
+//                               } catch {
+//                                 toast.error("Photo upload failed");
+//                               }
+//                             }}
+//                           />
+//                         ) : (
+//                           <span className="text-xs text-zinc-500">Only admins can update</span>
+//                         )}
+//                       </div>
+//                     </div>
+//                   </div>
+//                 </div>
+
+//                 <div className="rounded-2xl border border-zinc-700 bg-[#0e1013] p-4">
+//                   <h5 className="text-sm font-semibold text-zinc-200"></h5>
+              
+//                   {/* <div className="mt-3 flex flex-wrap gap-2">
+//                     {!amAdmin && (
+//                       <button onClick={() => setConfirmLeave(true)} className="px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600">
+//                         <LogOut className="inline mr-1" size={14} /> Leave Group
+//                       </button>
+//                     )}
+//                     {amAdmin && (
+//                       <button onClick={() => setConfirmDelete(true)} className="px-3 py-1.5 rounded-lg border border-amber-600 text-amber-400 hover:bg-amber-600/10">
+//                         <Trash2 className="inline mr-1" size={14} /> Delete Group
+//                       </button>
+//                     )}
+//                   </div> */}
+//                   <div className="mt-3 flex flex-wrap gap-2">
+//   {!amAdmin && (
+//     <button
+//       onClick={() => setConfirmLeave(true)}
+//       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl
+//                  bg-zinc-800 text-zinc-200 text-sm font-medium
+//                  ring-1 ring-zinc-700/50 shadow-sm
+//                  hover:bg-zinc-700 hover:text-white
+//                  transition-all duration-150 ease-in-out"
+//     >
+//       <LogOut size={14} className="text-zinc-400" />
+//       Leave Group
+//     </button>
+//   )}
+  
+//   {amAdmin && (
+//     <button
+//       onClick={() => setConfirmDelete(true)}
+//       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl
+//                  bg-transparent text-amber-400 text-sm font-medium
+//                  border border-amber-600/40 ring-1 ring-amber-700/30
+//                  hover:bg-amber-600/10 hover:text-amber-300
+//                  transition-all duration-150 ease-in-out"
+//     >
+//       <Trash2 size={14} className="text-amber-400" />
+//       Delete Group
+//     </button>
+//   )}
+// </div>
+
+//                 </div>
+//               </section>
+
+//               {/* right column: members + past members */}
+//               <section className="md:col-span-2 space-y-4">
+//                 <div className="rounded-2xl border border-zinc-700 bg-[#0e1013] p-4">
+//                   <div className="flex items-center justify-between">
+//                     <h5 className="text-sm font-semibold text-zinc-200">Members</h5>
+//                     {amAdmin && (
+//                       <button
+//                         onClick={() => setPickerOpen(true)}
+//                         className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs"
+//                       >
+//                         <UserPlus size={14} className="inline mr-1" />
+                        
+//                       </button>
+//                     )}
+//                   </div>
+
+//                   <div className="grid sm:grid-cols-2 gap-2 mt-3 max-h-72 overflow-y-auto pr-1">
+//                     {active?.members?.map((m) => {
+//                       const isAdminMember = isAdminOfGroup(active, m);
+//                       const id = getId(m);
+//                       return (
+//                         <div
+//                           key={id}
+//                           className="flex items-center justify-between bg-[#0b0d11] p-2 rounded-lg border border-zinc-700"
+//                         >
+//                           <div className="min-w-0">
+//                             <div className="font-medium truncate">{m.name || m.email}</div>
+//                             <div className="text-xs text-zinc-500 truncate">{m.email}</div>
+//                           </div>
+//                           <div className="flex items-center gap-2">
+//                             {isAdminMember && (
+//                               <span className="inline-flex items-center gap-1 text-[10px] px-3 py-1 rounded-full bg-yellow-400/20 text-yellow-400 border border-yellow-700/40">
+//     <Crown size={12} className="mr-1" />Admin
+//                               </span>
+//                             )}
+//                             {amAdmin && !isAdminMember && (
+//                               <>
+//                                <button
+//   onClick={() => makeAdmin(id)}
+//   className="px-2 py-0.5 inline bg-emerald-700 rounded-full hover:bg-emerald-600 text-zinc-100 text-[11px] whitespace-nowrap"
+// >
+//   Make Admin
+// </button>
+
+//                                 <button onClick={() => removeMember(id)} className="px-2 py-0.5 bg-zinc-700 rounded-full hover:bg-zinc-600 text-zinc-100 text-[11px]">
+//                                   Remove
+//                                 </button>
+//                               </>
+//                             )}
+//                           </div>
+//                         </div>
+//                       );
+//                     })}
+//                     {!active?.members?.length && (
+//                       <p className="text-sm text-zinc-500">No members yet.</p>
+//                     )}
+//                   </div>
+//                 </div>
+
+//                 <div className="rounded-2xl border border-zinc-700 bg-[#0e1013] p-4">
+//                   <div className="flex items-center justify-between">
+//                     <h5 className="text-sm font-semibold text-zinc-200">Past Members</h5>
+//                     <button className="text-xs underline" onClick={() => fetchPastMembers(active._id)}>
+//                       Refresh
+//                     </button>
+//                   </div>
+//                   {!pastMembers?.length ? (
+//                     <p className="text-sm text-zinc-500 mt-2">No past members found.</p>
+//                   ) : (
+//                     <div className="grid sm:grid-cols-2 gap-2 mt-3 max-h-48 overflow-y-auto pr-1">
+//                       {pastMembers.map((m) => {
+//                         const id = getId(m) || m?.user?._id;
+//                         return (
+//                           <div
+//                             key={id}
+//                             className="flex items-center justify-between bg-[#0b0d11] p-2 rounded-lg border border-zinc-700"
+//                           >
+//                             <div className="min-w-0">
+//                               <div className="font-medium truncate">{m.name || m.email}</div>
+//                               <div className="text-xs text-zinc-500 truncate">{m.email}</div>
+//                             </div>
+//                             {amAdmin && (
+//                               <button
+//                                 onClick={async () => {
+//                                   try {
+//                                     await http.put("/api/groups/add-member", {
+//                                       groupId: active._id,
+//                                       userId: id,
+//                                     });
+//                                     toast.success("Re-added to group");
+//                                     openGroup(active._id);
+//                                     fetchPastMembers(active._id);
+//                                   } catch {
+//                                     toast.error("Failed to re-add");
+//                                   }
+//                                 }}
+//                                 className="px-2 py-0.5 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-[11px]"
+//                               >
+//                                 Re-add
+//                               </button>
+//                             )}
+//                           </div>
+//                         );
+//                       })}
 //                     </div>
 //                   )}
 //                 </div>
-//               </div>
-//             </section>
-
-//             {/* members */}
-//             <section>
-//               <h4 className="text-sm font-semibold text-zinc-300 mb-2">Members</h4>
-//               <div className="grid sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto">
-//                 {active?.members?.map((m) => {
-//                   const isAdminMember = isAdminOfGroup(active, m);
-//                   const id = getId(m);
-//                   return (
-//                     <div
-//                       key={id}
-//                       className="flex items-center justify-between bg-[#0e1013] p-2 rounded border border-zinc-700"
-//                     >
-//                       <div className="min-w-0">
-//                         <div className="font-medium truncate">{m.name || m.email}</div>
-//                         <div className="text-xs text-zinc-500 truncate">{m.email}</div>
-//                       </div>
-//                       <div className="flex items-center gap-2">
-//                         {isAdminMember && (
-//                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-700/40">
-//                             <Crown size={12} className="inline mr-1" /> Admin
-//                           </span>
-//                         )}
-//                         {amAdmin && !isAdminMember && (
-//                           <>
-//                             <button onClick={() => makeAdmin(id)} className="px-2 py-0.5 rounded bg-yellow-600 text-xs">
-//                               Make Admin
-//                             </button>
-//                             <button onClick={() => removeMember(id)} className="px-2 py-0.5 rounded bg-red-600 text-xs">
-//                               Remove
-//                             </button>
-//                           </>
-//                         )}
-//                       </div>
-//                     </div>
-//                   );
-//                 })}
-//               </div>
-//             </section>
-
-//             {/* past members */}
-//             <section>
-//               <div className="flex items-center justify-between">
-//                 <h4 className="text-sm font-semibold text-zinc-300">Past Members</h4>
-//                 <button className="text-xs underline" onClick={() => fetchPastMembers(active._id)}>
-//                   Refresh
-//                 </button>
-//               </div>
-//               {!pastMembers?.length ? (
-//                 <p className="text-sm text-zinc-500 mt-1">No past members found.</p>
-//               ) : (
-//                 <div className="grid sm:grid-cols-2 gap-2 mt-2 max-h-48 overflow-y-auto">
-//                   {pastMembers.map((m) => {
-//                     const id = getId(m) || m?.user?._id;
-//                     return (
-//                       <div
-//                         key={id}
-//                         className="flex items-center justify-between bg-[#0e1013] p-2 rounded border border-zinc-700"
-//                       >
-//                         <div className="min-w-0">
-//                           <div className="font-medium truncate">{m.name || m.email}</div>
-//                           <div className="text-xs text-zinc-500 truncate">{m.email}</div>
-//                         </div>
-//                         {amAdmin && (
-//                           <button
-//                             onClick={async () => {
-//                               try {
-//                                 await http.put("/api/groups/add-member", {
-//                                   groupId: active._id,
-//                                   userId: id,
-//                                 });
-//                                 toast.success("Re-added to group");
-//                                 openGroup(active._id);
-//                                 fetchPastMembers(active._id);
-//                               } catch {
-//                                 toast.error("Failed to re-add");
-//                               }
-//                             }}
-//                             className="px-2 py-0.5 rounded bg-emerald-700 text-xs"
-//                           >
-//                             Re-add
-//                           </button>
-//                         )}
-//                       </div>
-//                     );
-//                   })}
-//                 </div>
-//               )}
-//             </section>
-
-//             {/* danger zone */}
-//             <section className="pt-2 border-top border-zinc-800">
-//               <h4 className="text-sm font-semibold text-zinc-300 mb-2">Danger Zone</h4>
-//               <div className="flex flex-wrap gap-2">
-//                 {!amAdmin && (
-//                   <button onClick={() => setConfirmLeave(true)} className="px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600">
-//                     <LogOut className="inline mr-1" size={14} /> Leave Group
-//                   </button>
-//                 )}
-//                 {amAdmin && (
-//                   <button onClick={() => setConfirmDelete(true)} className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white">
-//                     <Trash2 className="inline mr-1" size={14} /> Delete Group
-//                   </button>
-//                 )}
-//               </div>
-//             </section>
+//               </section>
+//             </div>
 //           </div>
 //         )}
 //       </Modal>
@@ -2074,7 +2245,7 @@
 //         onConfirm={deleteGroup}
 //         title="Delete Group"
 //         message="Are you sure you want to delete this group? This action cannot be undone."
-//         danger
+        
 //       />
 //       <Confirm
 //         open={confirmLeave}
@@ -2114,6 +2285,8 @@ import {
   Trash as TrashIcon
 } from "lucide-react";
 import { GetSocket } from "../utils/Sockets";
+import ChatDayDivider, { isSameDay } from "./ChatDayDivider";
+
 import http from "../utils/http";
 import toast, { Toaster } from "react-hot-toast";
 import uploadFile from "../utils/uploadFile";
@@ -2260,7 +2433,6 @@ const EMOJIS = [
   "❓",
   "⚠️",
 ];
-
 
 const safeText = (v) => (typeof v === "string" ? v : "");
 const EMOJI_RE = /^(?:\p{Emoji_Presentation}|\p{Extended_Pictographic}|\p{Emoji}|\s)+$/u;
@@ -3358,19 +3530,22 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
   };
 
   const leaveGroup = async () => {
-    if (!active) return;
-    try {
-      const { data } = await http.put("/api/groups/leave", { groupId: active._id });
-      toast.success(data?.message || "You left the group");
-      setAllGroups((prev) => prev.filter((g) => g._id !== active._id));
-      setGroups((prev) => prev.filter((g) => g._id !== active._id));
-      setActive(null);
-      setMessages([]);
-      if (!embedded) navigate("/");
-    } catch (e) {
-      toast.error(e?.response?.data?.message || "Leave failed");
-    }
-  };
+  if (!active) return;
+  try {
+    const { data } = await http.put("/api/groups/leave", { groupId: active._id });
+    toast.success(data?.message || "You left the group");
+    setAllGroups((prev) => prev.filter((g) => g._id !== active._id));
+    setGroups((prev) => prev.filter((g) => g._id !== active._id));
+    setActive(null);
+    setMessages([]);
+    setSettingsOpen(false);      //  close settings modal
+    setConfirmLeave(false);      // (optional) also ensure confirm is closed
+    if (!embedded) navigate("/");
+  } catch (e) {
+    toast.error(e?.response?.data?.message || "Leave failed");
+  }
+};
+
 
   const deleteGroup = async () => {
     if (!active) return;
@@ -3633,206 +3808,221 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
                       if (Array.isArray(m.deletedFor) && m.deletedFor.some(x => String(x) === String(myId))) {
                         return null;
                       }
+
+                      // ---------- DAY DIVIDER LOGIC ----------
+                      const currentDate =
+                        m.createdAt || m.timestamp || m.time || new Date().toISOString();
+                      const prev = i > 0 ? visibleMessages[i - 1] : null;
+                      const prevDate =
+                        prev && (prev.createdAt || prev.timestamp || prev.time);
+                      const showDivider =
+                        !prevDate || !isSameDay(prevDate, currentDate);
+                      // --------------------------------------
+
                       const senderId =
                         (typeof m.msgByUser === "object" ? m.msgByUser?._id : m.msgByUser) ||
                         (typeof m.sender === "object" ? m.sender?._id : m.sender);
                       const isMe = String(senderId) === String(myId);
                       const time = fmtTime(m.createdAt || m.timestamp || new Date());
 
-                     const wrap = isMe ? "text-right" : "text-left";
+                      const wrap = isMe ? "text-right" : "text-left";
 
-// message type + emoji detection
-const type = m.messageType || "text";
-const isText = !m.messageType || m.messageType === "text";
-const originalText = getTextFromMessage(m) || "";
-const emojiOnly = isText && isEmojiOnly((originalText || "").trim());
+                      // message type + emoji detection
+                      const type = m.messageType || "text";
+                      const isText = !m.messageType || m.messageType === "text";
+                      const originalText = getTextFromMessage(m) || "";
+                      const emojiOnly = isText && isEmojiOnly((originalText || "").trim());
 
-// bubble color becomes transparent for emoji-only
-const bubble = emojiOnly
-  ? "bg-transparent text-zinc-100"
-  : isMe
-  ? "bg-emerald-700 text-white"
-  : "bg-[#1f2c34] text-zinc-100";
-
+                      // bubble color becomes transparent for emoji-only
+                      const bubble = emojiOnly
+                        ? "bg-transparent text-zinc-100"
+                        : isMe
+                        ? "bg-emerald-700 text-white"
+                        : "bg-[#1f2c34] text-zinc-100";
 
                       return (
-                        <div key={m._id || `i-${i}`} className={`mb-2 sm:mb-3 ${wrap}`}>
-<div
-  className={[
-    "group relative inline-block rounded-2xl break-words",
-    "max-w-[85%] sm:max-w-[75%]",
-    emojiOnly ? "px-2 py-1" : "px-3 py-2",
-    bubble,
-  ].join(" ")}
->
-                            {/* kebab */}
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setOpenMenuFor(openMenuFor === m._id ? null : m._id); }}
-                              className={`absolute -top-2 ${isMe ? "-right-2" : "-left-2"} p-1 rounded-full
-                                          bg-black/30 hover:bg-black/40 opacity-0 group-hover:opacity-100 transition`}
-                              title="More"
-                            >
-                              <MoreVertical size={16} />
-                            </button>
+                        <React.Fragment key={m._id || `i-${i}`}>
+                          {showDivider && (
+                            <ChatDayDivider date={currentDate} />
+                          )}
 
-                            {/* dropdown */}
-                            {openMenuFor === m._id && (
-                              <div
-                                className={`absolute z-20 min-w-[160px] border border-zinc-700 rounded-lg overflow-hidden shadow
-                                            ${isMe ? "right-6 top-0" : "left-6 top-0"} bg-[#0e1013]`}
-                                onClick={(e) => e.stopPropagation()}
+                          <div className={`mb-2 sm:mb-3 ${wrap}`}>
+                            <div
+                              className={[
+                                "group relative inline-block rounded-2xl break-words",
+                                "max-w-[85%] sm:max-w-[75%]",
+                                emojiOnly ? "px-2 py-1" : "px-3 py-2",
+                                bubble,
+                              ].join(" ")}
+                            >
+                              {/* kebab */}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setOpenMenuFor(openMenuFor === m._id ? null : m._id); }}
+                                className={`absolute -top-2 ${isMe ? "-right-2" : "-left-2"} p-1 rounded-full
+                                          bg-black/30 hover:bg-black/40 opacity-0 group-hover:opacity-100 transition`}
+                                title="More"
                               >
-                                {/* Edit only for my text messages */}
-                                {isMe && (m.messageType === "text" || !m.messageType) && (
+                                <MoreVertical size={16} />
+                              </button>
+
+                              {/* dropdown */}
+                              {openMenuFor === m._id && (
+                                <div
+                                  className={`absolute z-20 min-w-[160px] border border-zinc-700 rounded-lg overflow-hidden shadow
+                                            ${isMe ? "right-6 top-0" : "left-6 top-0"} bg-[#0e1013]`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {/* Edit only for my text messages */}
+                                  {isMe && (m.messageType === "text" || !m.messageType) && (
+                                    <button
+                                      className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 flex items-center gap-2"
+                                      onClick={() => startEdit(m)}
+                                    >
+                                      <Pencil size={14} /> Edit
+                                    </button>
+                                  )}
+
+                                  {/* Delete for me */}
                                   <button
                                     className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 flex items-center gap-2"
-                                    onClick={() => startEdit(m)}
+                                    onClick={() => deleteForMe(m)}
                                   >
-                                    <Pencil size={14} /> Edit
+                                    <TrashIcon size={14} /> Delete
                                   </button>
-                                )}
+                                </div>
+                              )}
 
-                                {/* Delete for me */}
-                                <button
-                                  className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 flex items-center gap-2"
-                                  onClick={() => deleteForMe(m)}
-                                >
-                                  <TrashIcon size={14} /> Delete
-                                </button>
-                              </div>
-                            )}
-
-                            {/* editing UI */}
-                            {editingId === m._id && (m.messageType === "text" || !m.messageType) ? (
-                              <div className="flex items-center gap-2">
-                                <input
-                                  value={editDraft}
-                                  onChange={(e) => setEditDraft(e.target.value)}
-                                  className="flex-1 px-2 py-1 rounded bg-black/20 border border-white/10 outline-none"
-                                  autoFocus
-                                />
-                                <button onClick={saveEdit} className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-xs">
-                                  Save
-                                </button>
-                                <button onClick={cancelEdit} className="px-2 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-xs">
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
-                              <>
-                                {/* text */}
-                               {isText && (
-  <div
-    className={
-      emojiOnly
-        ? "text-5xl leading-[1] text-center py-1 select-none"
-        : "whitespace-pre-wrap text-[15px] leading-6"
-    }
-  >
-    {(() => {
-      const hasTrans = !!m.translatedText;
-      const canAsk = !isMe && !emojiOnly;
-
-      const display = hasTrans && canAsk
-        ? (showOriginalMap[m._id] ? safeText(originalText) : safeText(m.translatedText))
-        : safeText(originalText);
-
-      return (
-        <>
-          {display}
-
-          {!emojiOnly && canAsk && (
-            <div className="text-[11px] mt-1 opacity-80">
-              {hasTrans ? (
-                <button
-                  onClick={() =>
-                    setShowOriginalMap((map) => ({ ...map, [m._id]: !map[m._id] }))
-                  }
-                  className="underline"
-                >
-                  {showOriginalMap[m._id] ? "Show translation" : "Show original"}
-                </button>
-              ) : (
-                <button
-                  onClick={() => requestGroupTranslation(m._id)}
-                  className="underline"
-                  disabled={translatingMessageId === m._id}
-                >
-                  {translatingMessageId === m._id ? "Translating…" : "Translate"}
-                </button>
-              )}
-            </div>
-          )}
-
-          {!emojiOnly && m.isEdited && (
-            <span className="ml-1 text-[10px] opacity-70">(edited)</span>
-          )}
-        </>
-      );
-    })()}
-  </div>
-)}
-
-
-                                {/* media */}
-                                {m.messageType === "image" && m.url && <ImageBubble url={m.url} fileName={m.fileName} />}
-                                {m.messageType === "file" && m.url && (
-                                  <FileBubble
-                                    url={m.url}
-                                    fileName={m.fileName || m.filename || m.name}
-                                    size={typeof m.size === "number" ? m.size : m.fileSize}
+                              {/* editing UI */}
+                              {editingId === m._id && (m.messageType === "text" || !m.messageType) ? (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    value={editDraft}
+                                    onChange={(e) => setEditDraft(e.target.value)}
+                                    className="flex-1 px-2 py-1 rounded bg-black/20 border border-white/10 outline-none"
+                                    autoFocus
                                   />
-                                )}
-
-                                {/* voice */}
-                                {(m.messageType === "audio" || m.messageType === "voice") && m.url && (
-                                  <div className="space-y-1">
-                                    <VoiceBubble src={m.url} />
-                                    {!isMe && (
-                                      (() => {
+                                  <button onClick={saveEdit} className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-xs">
+                                    Save
+                                  </button>
+                                  <button onClick={cancelEdit} className="px-2 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-xs">
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  {/* text */}
+                                  {isText && (
+                                    <div
+                                      className={
+                                        emojiOnly
+                                          ? "text-5xl leading-[1] text-center py-1 select-none"
+                                          : "whitespace-pre-wrap text-[15px] leading-6"
+                                      }
+                                    >
+                                      {(() => {
                                         const hasTrans = !!m.translatedText;
-                                        if (hasTrans) {
-                                          return (
-                                            <>
-                                              <p className="text-xs text-zinc-300/90">
-                                                {showVoiceOriginalMap[m._id]
-                                                  ? (m.originalVoiceText || m.text || "No original transcription available")
-                                                  : m.translatedText}
-                                              </p>
-                                              <button
-                                                onClick={() =>
-                                                  setShowVoiceOriginalMap((map) => ({ ...map, [m._id]: !map[m._id] }))
-                                                }
-                                                className="text-[11px] underline"
-                                              >
-                                                {showVoiceOriginalMap[m._id] ? "Show translation" : "Show original"}
-                                              </button>
-                                            </>
-                                          );
-                                        }
-                                        return (
-                                          <button
-                                            onClick={() => requestGroupTranslation(m._id)}
-                                            className="text-xs underline"
-                                            disabled={translatingMessageId === m._id}
-                                          >
-                                            {translatingMessageId === m._id ? "Translating…" : "Translate voice"}
-                                          </button>
-                                        );
-                                      })()
-                                    )}
-                                  </div>
-                                )}
-                              </>
-                            )}
+                                        const canAsk = !isMe && !emojiOnly;
 
-                            {/* time + seen */}
-                            <div className={`text-[10px] mt-1 ${isMe ? "text-white/75" : "text-zinc-300/70"} text-right`}>
-                              {time}
-                              <SeenTicks m={m} isMe={isMe} />
+                                        const display = hasTrans && canAsk
+                                          ? (showOriginalMap[m._id] ? safeText(originalText) : safeText(m.translatedText))
+                                          : safeText(originalText);
+
+                                        return (
+                                          <>
+                                            {display}
+
+                                            {!emojiOnly && canAsk && (
+                                              <div className="text-[11px] mt-1 opacity-80">
+                                                {hasTrans ? (
+                                                  <button
+                                                    onClick={() =>
+                                                      setShowOriginalMap((map) => ({ ...map, [m._id]: !map[m._id] }))
+                                                    }
+                                                    className="underline"
+                                                  >
+                                                    {showOriginalMap[m._id] ? "Show translation" : "Show original"}
+                                                  </button>
+                                                ) : (
+                                                  <button
+                                                    onClick={() => requestGroupTranslation(m._id)}
+                                                    className="underline"
+                                                    disabled={translatingMessageId === m._id}
+                                                  >
+                                                    {translatingMessageId === m._id ? "Translating…" : "Translate"}
+                                                  </button>
+                                                )}
+                                              </div>
+                                            )}
+
+                                            {!emojiOnly && m.isEdited && (
+                                              <span className="ml-1 text-[10px] opacity-70">(edited)</span>
+                                            )}
+                                          </>
+                                        );
+                                      })()}
+                                    </div>
+                                  )}
+
+                                  {/* media */}
+                                  {m.messageType === "image" && m.url && <ImageBubble url={m.url} fileName={m.fileName} />}
+                                  {m.messageType === "file" && m.url && (
+                                    <FileBubble
+                                      url={m.url}
+                                      fileName={m.fileName || m.filename || m.name}
+                                      size={typeof m.size === "number" ? m.size : m.fileSize}
+                                    />
+                                  )}
+
+                                  {/* voice */}
+                                  {(m.messageType === "audio" || m.messageType === "voice") && m.url && (
+                                    <div className="space-y-1">
+                                      <VoiceBubble src={m.url} />
+                                      {!isMe && (
+                                        (() => {
+                                          const hasTrans = !!m.translatedText;
+                                          if (hasTrans) {
+                                            return (
+                                              <>
+                                                <p className="text-xs text-zinc-300/90">
+                                                  {showVoiceOriginalMap[m._id]
+                                                    ? (m.originalVoiceText || m.text || "No original transcription available")
+                                                    : m.translatedText}
+                                                </p>
+                                                <button
+                                                  onClick={() =>
+                                                    setShowVoiceOriginalMap((map) => ({ ...map, [m._id]: !map[m._id] }))
+                                                  }
+                                                  className="text-[11px] underline"
+                                                >
+                                                  {showVoiceOriginalMap[m._id] ? "Show translation" : "Show original"}
+                                                </button>
+                                              </>
+                                            );
+                                          }
+                                          return (
+                                            <button
+                                              onClick={() => requestGroupTranslation(m._id)}
+                                              className="text-xs underline"
+                                              disabled={translatingMessageId === m._id}
+                                            >
+                                              {translatingMessageId === m._id ? "Translating…" : "Translate voice"}
+                                            </button>
+                                          );
+                                        })()
+                                      )}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+
+                              {/* time + seen */}
+                              <div className={`text-[10px] mt-1 ${isMe ? "text-white/75" : "text-zinc-300/70"} text-right`}>
+                                {time}
+                                <SeenTicks m={m} isMe={isMe} />
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        </React.Fragment>
                       );
                     })}
                   <div ref={messagesEndRef} />
@@ -4042,35 +4232,27 @@ const bubble = emojiOnly
         footer={
           <div className="flex justify-end w-full gap-2">
             {amAdmin && (
-              <>
-                {/* <button
-                  onClick={() => setPickerOpen(true)}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white"
-                >
-                  Add Members
-                </button> */}
-                <button
-                  onClick={async () => {
-                    const nextName = (settingsDraft.name ?? "").trim();
-                    const curName = (active?.name ?? "").trim();
-                    const nextPic = settingsDraft.profilePic ?? "";
-                    const curPic = active?.profilePic ?? "";
+              <button
+                onClick={async () => {
+                  const nextName = (settingsDraft.name ?? "").trim();
+                  const curName = (active?.name ?? "").trim();
+                  const nextPic = settingsDraft.profilePic ?? "";
+                  const curPic = active?.profilePic ?? "";
 
-                    const changed = {};
-                    if (nextName && nextName !== curName) changed.name = nextName;
-                    if (nextPic && nextPic !== curPic) changed.profilePic = nextPic;
+                  const changed = {};
+                  if (nextName && nextName !== curName) changed.name = nextName;
+                  if (nextPic && nextPic !== curPic) changed.profilePic = nextPic;
 
-                    if (Object.keys(changed).length === 0) {
-                      toast("No changes");
-                      return;
-                    }
-                    await updateGroup(changed);
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white"
-                >
-                  Save Changes
-                </button>
-              </>
+                  if (Object.keys(changed).length === 0) {
+                    toast("No changes");
+                    return;
+                  }
+                  await updateGroup(changed);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white"
+              >
+                Save Changes
+              </button>
             )}
           </div>
         }
@@ -4164,49 +4346,35 @@ const bubble = emojiOnly
 
                 <div className="rounded-2xl border border-zinc-700 bg-[#0e1013] p-4">
                   <h5 className="text-sm font-semibold text-zinc-200"></h5>
-              
-                  {/* <div className="mt-3 flex flex-wrap gap-2">
-                    {!amAdmin && (
-                      <button onClick={() => setConfirmLeave(true)} className="px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600">
-                        <LogOut className="inline mr-1" size={14} /> Leave Group
-                      </button>
-                    )}
-                    {amAdmin && (
-                      <button onClick={() => setConfirmDelete(true)} className="px-3 py-1.5 rounded-lg border border-amber-600 text-amber-400 hover:bg-amber-600/10">
-                        <Trash2 className="inline mr-1" size={14} /> Delete Group
-                      </button>
-                    )}
-                  </div> */}
                   <div className="mt-3 flex flex-wrap gap-2">
-  {!amAdmin && (
-    <button
-      onClick={() => setConfirmLeave(true)}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl
-                 bg-zinc-800 text-zinc-200 text-sm font-medium
-                 ring-1 ring-zinc-700/50 shadow-sm
-                 hover:bg-zinc-700 hover:text-white
-                 transition-all duration-150 ease-in-out"
-    >
-      <LogOut size={14} className="text-zinc-400" />
-      Leave Group
-    </button>
-  )}
-  
-  {amAdmin && (
-    <button
-      onClick={() => setConfirmDelete(true)}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl
-                 bg-transparent text-amber-400 text-sm font-medium
-                 border border-amber-600/40 ring-1 ring-amber-700/30
-                 hover:bg-amber-600/10 hover:text-amber-300
-                 transition-all duration-150 ease-in-out"
-    >
-      <Trash2 size={14} className="text-amber-400" />
-      Delete Group
-    </button>
-  )}
-</div>
-
+                    {!amAdmin && (
+                      <button
+                        onClick={() => setConfirmLeave(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl
+                                   bg-zinc-800 text-zinc-200 text-sm font-medium
+                                   ring-1 ring-zinc-700/50 shadow-sm
+                                   hover:bg-zinc-700 hover:text-white
+                                   transition-all duration-150 ease-in-out"
+                      >
+                        <LogOut size={14} className="text-zinc-400" />
+                        Leave Group
+                      </button>
+                    )}
+                    
+                    {amAdmin && (
+                      <button
+                        onClick={() => setConfirmDelete(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl
+                                   bg-transparent text-amber-400 text-sm font-medium
+                                   border border-amber-600/40 ring-1 ring-amber-700/30
+                                   hover:bg-amber-600/10 hover:text-amber-300
+                                   transition-all duration-150 ease-in-out"
+                      >
+                        <Trash2 size={14} className="text-amber-400" />
+                        Delete Group
+                      </button>
+                    )}
+                  </div>
                 </div>
               </section>
 
@@ -4221,7 +4389,6 @@ const bubble = emojiOnly
                         className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs"
                       >
                         <UserPlus size={14} className="inline mr-1" />
-                        
                       </button>
                     )}
                   </div>
@@ -4242,17 +4409,17 @@ const bubble = emojiOnly
                           <div className="flex items-center gap-2">
                             {isAdminMember && (
                               <span className="inline-flex items-center gap-1 text-[10px] px-3 py-1 rounded-full bg-yellow-400/20 text-yellow-400 border border-yellow-700/40">
-    <Crown size={12} className="mr-1" />Admin
+                                <Crown size={12} className="mr-1" />Admin
                               </span>
                             )}
                             {amAdmin && !isAdminMember && (
                               <>
-                               <button
-  onClick={() => makeAdmin(id)}
-  className="px-2 py-0.5 inline bg-emerald-700 rounded-full hover:bg-emerald-600 text-zinc-100 text-[11px] whitespace-nowrap"
->
-  Make Admin
-</button>
+                                <button
+                                  onClick={() => makeAdmin(id)}
+                                  className="px-2 py-0.5 inline bg-emerald-700 rounded-full hover:bg-emerald-600 text-zinc-100 text-[11px] whitespace-nowrap"
+                                >
+                                  Make Admin
+                                </button>
 
                                 <button onClick={() => removeMember(id)} className="px-2 py-0.5 bg-zinc-700 rounded-full hover:bg-zinc-600 text-zinc-100 text-[11px]">
                                   Remove
@@ -4330,7 +4497,6 @@ const bubble = emojiOnly
         onConfirm={deleteGroup}
         title="Delete Group"
         message="Are you sure you want to delete this group? This action cannot be undone."
-        
       />
       <Confirm
         open={confirmLeave}
