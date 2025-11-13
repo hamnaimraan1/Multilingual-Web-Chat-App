@@ -354,8 +354,8 @@ const EditProfile = ({ setEditProfile, user, setUser }) => {
             disabled={!dirty || saving || !edituserData.name.trim()}
             className={`px-4 py-2 rounded-lg text-white ${
               !dirty || saving || !edituserData.name.trim()
-                ? "bg-blue-900 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-500"
+                ? "bg-emerald-700 cursor-not-allowed"
+                : "bg-emerald-600 hover:bg-emerald-500"
             }`}
           >
             {saving ? "Saving…" : "Save"}

@@ -1,4 +1,5 @@
 
+
 // import React, { useEffect, useMemo, useState } from "react";
 // import { UserCircle, X } from "lucide-react";
 // import Forminputs from "./Forminputs";
@@ -60,12 +61,11 @@
 //         );
 //         setEmailExists(!!res.data?.exists);
 //       } catch {
-//         // If the check fails, don't block the user; just treat as not existing.
 //         setEmailExists(false);
 //       } finally {
 //         setCheckingEmail(false);
 //       }
-//     }, 450); // debounce 450ms
+//     }, 450);
 //     return () => clearTimeout(id);
 //   }, [RegisterData.email]);
 
@@ -218,14 +218,14 @@
 //   );
 
 //   return (
-//     <div className="grid place-content-center min-h-screen bg-[#0a192f] text-white px-4">
-//       <div className="bg-[#112240] w-full max-w-md rounded-2xl p-8 shadow-xl border border-[#1b2e4a]">
-//         <div className="w-fit mx-auto mb-4 text-[#f7c948]">
+//     <div className="grid place-content-center min-h-screen bg-[#0a0f14] text-zinc-100 px-4">
+//       <div className="w-full max-w-md rounded-2xl p-8 shadow-xl border border-zinc-800/70 bg-[#0b1016]">
+//         <div className="w-fit mx-auto mb-4 text-emerald-400/90">
 //           <UserCircle size={72} strokeWidth={1.5} />
 //         </div>
 
-//         <h3 className="text-center text-2xl font-bold">Create your account</h3>
-//         <p className="text-center text-sm text-gray-400 mb-6">
+//         <h3 className="text-center text-2xl font-bold text-zinc-200">Create your account</h3>
+//         <p className="text-center text-sm text-zinc-400 mb-6">
 //           Verify your email with OTP to continue
 //         </p>
 
@@ -257,10 +257,7 @@
 //               value={RegisterData.email}
 //               placeholder="you@example.com"
 //               onChange={onChange}
-//               error={
-//                 errors.email ||
-//                 (emailExists ? "Email already registered." : "")
-//               }
+//               error={errors.email || (emailExists ? "Email already registered." : "")}
 //               helper={
 //                 RegisterData.email && EMAIL_RE.test(RegisterData.email)
 //                   ? checkingEmail
@@ -290,25 +287,25 @@
 
 //             {/* profile photo */}
 //             <div>
-//               <label htmlFor="profilePic" className="block text-sm font-medium text-gray-200 mb-1">
+//               <label htmlFor="profilePic" className="block text-sm font-medium text-zinc-200 mb-1">
 //                 Profile Picture
 //               </label>
-//               <div className="h-14 bg-[#0f1b31] flex justify-between items-center border border-[#243b55] rounded-lg px-3 hover:border-[#4f7dbd] transition">
+//               <div className="h-14 bg-[#0f1419] flex justify-between items-center border border-zinc-700/60 rounded-lg px-3 hover:border-emerald-500/40 transition">
 //                 <div className="flex items-center gap-3">
 //                   {uploadImg?.url ? (
 //                     <img
 //                       src={uploadImg.url}
 //                       alt="Preview"
-//                       className="w-10 h-10 rounded-full object-cover"
+//                       className="w-10 h-10 rounded-full object-cover ring-1 ring-emerald-500/20"
 //                     />
 //                   ) : (
-//                     <p className="text-sm text-gray-400">Upload profile photo</p>
+//                     <p className="text-sm text-zinc-400">Upload profile photo</p>
 //                   )}
 //                 </div>
 //                 <div className="flex items-center gap-2">
 //                   {uploadImg?.url && (
 //                     <button
-//                       className="text-sm text-red-300 hover:text-red-400"
+//                       className="text-sm text-rose-300 hover:text-rose-400"
 //                       onClick={handleClearPhoto}
 //                     >
 //                       <X />
@@ -316,7 +313,7 @@
 //                   )}
 //                   <label
 //                     htmlFor="profilePic"
-//                     className="text-xs px-3 py-1 rounded-md bg-[#1c2f50] hover:bg-[#23406c] cursor-pointer"
+//                     className="text-xs px-3 py-1 rounded-md bg-emerald-600/10 text-emerald-300 hover:bg-emerald-600/20 cursor-pointer ring-1 ring-emerald-500/20"
 //                   >
 //                     Choose
 //                   </label>
@@ -334,7 +331,7 @@
 
 //             {/* language */}
 //             <div>
-//               <label className="block mb-1 text-sm font-medium text-gray-200" htmlFor="preferredLanguage">
+//               <label className="block mb-1 text-sm font-medium text-zinc-200" htmlFor="preferredLanguage">
 //                 Preferred Language
 //               </label>
 //               <select
@@ -342,17 +339,21 @@
 //                 name="preferredLanguage"
 //                 value={RegisterData.preferredLanguage}
 //                 onChange={onChange}
-//                 className="w-full rounded-lg px-3 py-2 bg-[#0f1b31] text-white border border-[#243b55] focus:outline-none focus:ring-2 focus:ring-[#4f7dbd]"
+//                 className="w-full rounded-lg px-3 py-2 bg-[#0f1419] text-zinc-100 border border-zinc-700/60 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
 //               >
 //                 {languageList.map(({ code, label }) => (
-//                   <option key={code} value={code}>
+//                   <option key={code} value={code} className="bg-[#0b1016] text-zinc-100">
 //                     {label}
 //                   </option>
 //                 ))}
 //               </select>
 //             </div>
 
-//             <SubmitButton loading={loading} disabled={!canSubmitForm}>
+//             <SubmitButton
+//               loading={loading}
+//               disabled={!canSubmitForm}
+//               className="!bg-emerald-600 hover:!bg-emerald-500 !text-white !ring-1 !ring-emerald-400/30"
+//             >
 //               {checkingEmail ? "Checking…" : "Send OTP"}
 //             </SubmitButton>
 //           </form>
@@ -361,9 +362,10 @@
 //         {/* Phase: OTP */}
 //         {phase === "otp" && (
 //           <div className="space-y-4">
-//             <div className="rounded-lg bg-[#0f1b31] border border-[#243b55] p-4 text-sm text-gray-200">
-//               We’ve sent a one-time code to <span className="text-white font-medium">{RegisterData.email}</span>.
-//               Enter it below to verify your email and complete signup.
+//             <div className="rounded-lg bg-[#0f1419] border border-zinc-700/60 p-4 text-sm text-zinc-200">
+//               We’ve sent a one-time code to{" "}
+//               <span className="text-zinc-100 font-medium">{RegisterData.email}</span>. Enter it below
+//               to verify your email and complete signup.
 //             </div>
 
 //             <div className="flex gap-3">
@@ -373,33 +375,34 @@
 //                 maxLength={6}
 //                 value={otp}
 //                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-//                 className="flex-1 text-center tracking-widest text-lg rounded-lg px-3 py-3 bg-[#0f1b31] text-white border border-[#243b55] focus:outline-none focus:ring-2 focus:ring-[#4f7dbd]"
+//                 className="flex-1 text-center tracking-widest text-lg rounded-lg px-3 py-3 bg-[#0f1419] text-zinc-100 border border-zinc-700/60 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
 //                 placeholder="Enter 6-digit OTP"
 //               />
 //               <button
 //                 type="button"
 //                 onClick={handleResend}
 //                 disabled={cooldown > 0 || loading}
-//                 className="px-4 py-3 rounded-lg bg-[#1c2f50] text-white text-sm hover:bg-[#23406c] disabled:opacity-50"
+//                 className="px-4 py-3 rounded-lg bg-emerald-600/10 text-emerald-300 hover:bg-emerald-600/20 disabled:opacity-50 ring-1 ring-emerald-500/20"
 //               >
 //                 {cooldown > 0 ? `Resend (${cooldown})` : "Resend"}
 //               </button>
 //             </div>
 
 //             <SubmitButton
-//   type="button"
-//   loading={loading}
-//   onClick={verifyAndRegister}
-// >
-//   Verify & Create Account
-// </SubmitButton>
+//               type="button"
+//               loading={loading}
+//               onClick={verifyAndRegister}
+//               className="!bg-emerald-600 hover:!bg-emerald-500 !text-white !ring-1 !ring-emerald-400/30"
+//             >
+//               Verify & Create Account
+//             </SubmitButton>
 
-//             <p className="text-center text-sm text-gray-400">
+//             <p className="text-center text-sm text-zinc-400">
 //               Wrong email?{" "}
 //               <button
 //                 type="button"
 //                 onClick={() => setPhase("form")}
-//                 className="text-[#f7c948] hover:underline"
+//                 className="text-emerald-400 hover:text-emerald-300 hover:underline"
 //               >
 //                 Edit
 //               </button>
@@ -407,9 +410,9 @@
 //           </div>
 //         )}
 
-//         <p className="mt-6 text-center text-sm text-gray-400">
+//         <p className="mt-6 text-center text-sm text-zinc-400">
 //           Already have an account?{" "}
-//           <Link to="/login" className="text-[#f7c948] hover:underline font-medium">
+//           <Link to="/login" className="text-emerald-400 hover:text-emerald-300 hover:underline font-medium">
 //             Login
 //           </Link>
 //         </p>
@@ -432,7 +435,12 @@ import languageOptions from "../utils/languageOptions";
 
 /** helpers */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PASS_RE = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/; // 8+, 1 upper, 1 digit, 1 symbol
+
+// Name: 3–50 chars, letters + spaces + . ' -
+const NAME_RE = /^[A-Za-z][A-Za-z\s'.-]{2,49}$/;
+
+// Password: 10–64 chars, at least 1 upper, 1 lower, 1 digit, 1 symbol, no spaces
+const PASS_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])(?=\S+$).{10,64}$/;
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -489,10 +497,24 @@ const Signup = () => {
   }, [RegisterData.email]);
 
   const canSubmitForm = useMemo(() => {
+    const nameOk = NAME_RE.test(RegisterData.name.trim());
+    const emailOk = EMAIL_RE.test(RegisterData.email);
+    const passOk = PASS_RE.test(RegisterData.password);
+
+    // password should not contain name or email local part
+    const localPart = RegisterData.email.split("@")[0]?.toLowerCase() || "";
+    const passLower = RegisterData.password.toLowerCase();
+    const nameLower = RegisterData.name.trim().toLowerCase();
+
+    const passNotPersonal =
+      passOk &&
+      (!nameLower || !passLower.includes(nameLower)) &&
+      (!localPart || !passLower.includes(localPart));
+
     return (
-      RegisterData.name.trim().length >= 3 &&
-      EMAIL_RE.test(RegisterData.email) &&
-      PASS_RE.test(RegisterData.password) &&
+      nameOk &&
+      emailOk &&
+      passNotPersonal &&
       !emailExists &&
       !checkingEmail
     );
@@ -501,7 +523,38 @@ const Signup = () => {
   const onChange = (e) => {
     const { name, value } = e.target;
     setRegisterData((p) => ({ ...p, [name]: value }));
-    setErrors((p) => ({ ...p, [name]: "" }));
+
+    // live field-level validation
+    setErrors((prev) => {
+      const next = { ...prev };
+
+      if (name === "name") {
+        if (!NAME_RE.test(value.trim())) {
+          next.name = "Name must be 3–50 letters only.";
+        } else {
+          next.name = "";
+        }
+      }
+
+      if (name === "email") {
+        if (!EMAIL_RE.test(value)) {
+          next.email = "Enter a valid email address.";
+        } else {
+          next.email = "";
+        }
+      }
+
+      if (name === "password") {
+        if (!PASS_RE.test(value)) {
+          next.password =
+            "10–64 chars, 1 upper, 1 lower, 1 number, 1 symbol, no spaces.";
+        } else {
+          next.password = "";
+        }
+      }
+
+      return next;
+    });
   };
 
   const handleClearPhoto = (e) => {
@@ -513,6 +566,21 @@ const Signup = () => {
   const handleUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // strong client-side validation
+    const MAX_SIZE = 2 * 1024 * 1024; // 2 MB
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Only JPEG, PNG, WEBP, or GIF images are allowed.");
+      return;
+    }
+
+    if (file.size > MAX_SIZE) {
+      toast.error("Image must be smaller than 2 MB.");
+      return;
+    }
+
     try {
       const uploaded = await uploadFile(file);
       if (uploaded?.url) {
@@ -529,11 +597,34 @@ const Signup = () => {
   /** Step 1: validate + (already) checked availability + send OTP */
   const startOtpFlow = async () => {
     const errs = {};
-    if (RegisterData.name.trim().length < 3) errs.name = "Name must be at least 3 characters.";
-    if (!EMAIL_RE.test(RegisterData.email)) errs.email = "Invalid email format.";
-    if (!PASS_RE.test(RegisterData.password))
-      errs.password = "Min 8 chars with 1 uppercase, 1 number, and 1 symbol.";
+    const trimmedName = RegisterData.name.trim();
+
+    if (!NAME_RE.test(trimmedName)) {
+      errs.name = "Name must be 3–50 letters only.";
+    }
+
+    if (!EMAIL_RE.test(RegisterData.email)) {
+      errs.email = "Enter a valid email address.";
+    }
+
+    if (!PASS_RE.test(RegisterData.password)) {
+      errs.password =
+        "10–64 chars, 1 upper, 1 lower, 1 number, 1 symbol, no spaces.";
+    }
+
+    // password not containing name or email local-part
+    const localPart = RegisterData.email.split("@")[0]?.toLowerCase() || "";
+    const passLower = RegisterData.password.toLowerCase();
+    const nameLower = trimmedName.toLowerCase();
+
+    if (nameLower && passLower.includes(nameLower)) {
+      errs.password = "Password must not contain your name.";
+    } else if (localPart && passLower.includes(localPart)) {
+      errs.password = "Password must not contain your email.";
+    }
+
     if (emailExists) errs.email = "Email already registered.";
+
     if (Object.keys(errs).length) {
       setErrors(errs);
       if (errs.email === "Email already registered.") toast.error(errs.email);
@@ -595,8 +686,8 @@ const Signup = () => {
 
   /** Step 2: verify OTP, then call your existing /api/register */
   const verifyAndRegister = async () => {
-    if (!otp || otp.length < 4) {
-      toast.error("Enter the OTP sent to your email.");
+    if (!otp || otp.length !== 6) {
+      toast.error("Enter the 6-digit OTP sent to your email.");
       return;
     }
     try {
@@ -699,7 +790,7 @@ const Signup = () => {
               showStrength={true}
               onChange={onChange}
               error={errors.password}
-              helper="Min 8 chars, 1 uppercase, 1 number, 1 symbol"
+              helper="10–64 chars, 1 upper, 1 lower, 1 number, 1 symbol, no spaces"
               required
               autoComplete="new-password"
             />
@@ -750,7 +841,10 @@ const Signup = () => {
 
             {/* language */}
             <div>
-              <label className="block mb-1 text-sm font-medium text-zinc-200" htmlFor="preferredLanguage">
+              <label
+                className="block mb-1 text-sm font-medium text-zinc-200"
+                htmlFor="preferredLanguage"
+              >
                 Preferred Language
               </label>
               <select
@@ -831,7 +925,10 @@ const Signup = () => {
 
         <p className="mt-6 text-center text-sm text-zinc-400">
           Already have an account?{" "}
-          <Link to="/login" className="text-emerald-400 hover:text-emerald-300 hover:underline font-medium">
+          <Link
+            to="/login"
+            className="text-emerald-400 hover:text-emerald-300 hover:underline font-medium"
+          >
             Login
           </Link>
         </p>

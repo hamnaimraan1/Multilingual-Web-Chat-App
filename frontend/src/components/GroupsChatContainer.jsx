@@ -1,2262 +1,4 @@
 
-// import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-// import { useLocalStorage } from "@mantine/hooks";
-// import {
-//   Search,
-//   Plus,
-//   Users,
-//   UserPlus,
-//   Crown,
-//   Trash2,
-//   LogOut,
-//   Settings as SettingsIcon,
-//   Send,
-//   Paperclip,
-//   Smile,
-//   Mic,
-//   FileText,
-//   Image as ImageIcon,
-//   Play,
-//   Pause,
-//   ChevronLeft,
-//   Info,
-//   Check,
-//   CheckCheck,
-//   MoreVertical,
-//   Pencil,
-//   Trash as TrashIcon
-// } from "lucide-react";
-// import { GetSocket } from "../utils/Sockets";
-// import ChatDayDivider, { isSameDay } from "./ChatDayDivider";
-
-// import http from "../utils/http";
-// import toast, { Toaster } from "react-hot-toast";
-// import uploadFile from "../utils/uploadFile";
-// import { useNavigate, useParams, useLocation } from "react-router-dom";
-// import { createPortal } from "react-dom";
-
-// /* ---------- modal / confirm (unchanged behavior) ---------- */
-// const Modal = ({ open, onClose, title, children, footer, wide = false, zIndex = 1000 }) => {
-//   useEffect(() => {
-//     if (!open) return;
-//     const prev = document.body.style.overflow;
-//     document.body.style.overflow = "hidden";
-//     return () => { document.body.style.overflow = prev; };
-//   }, [open]);
-
-//   if (!open) return null;
-
-//   const node = (
-//     <div className="fixed inset-0 flex items-center justify-center p-3 z-[1000]" style={{ zIndex }}>
-//       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-//       <div className={`relative w-full ${wide ? "max-w-3xl" : "max-w-lg"} rounded-2xl bg-[#121418] border border-zinc-700 shadow-xl`}>
-//         <div className="px-5 py-4 border-b border-zinc-700 flex items-center justify-between">
-//           <h3 className="text-zinc-100 font-semibold">{title}</h3>
-//           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200" aria-label="Close">✕</button>
-//         </div>
-//         <div className="px-5 py-4 max-h-[70vh] overflow-y-auto">{children}</div>
-//         {footer && <div className="px-5 py-4 border-t border-zinc-700">{footer}</div>}
-//       </div>
-//     </div>
-//   );
-
-//   return createPortal(node, document.body);
-// };
-
-// const Confirm = ({ open, onClose, onConfirm, title, message, danger }) => (
-//   <Modal
-//     open={open}
-//     onClose={onClose}
-//     title={title}
-//     footer={
-//       <div className="flex justify-end gap-2">
-//         <button onClick={onClose} className="px-3 py-1.5 rounded-lg bg-zinc-700 text-zinc-200 hover:bg-zinc-600">Cancel</button>
-//         <button
-//           onClick={() => { onConfirm(); onClose(); }}
-//           className={`px-3 py-1.5 rounded-lg ${danger ? "bg-red-600 hover:bg-red-500" : "bg-green-600 hover:bg-green-500"} text-white`}
-//         >
-//           Confirm
-//         </button>
-//       </div>
-//     }
-//   >
-//     <p className="text-zinc-300">{message}</p>
-//   </Modal>
-// );
-
-// /* ---------- small helpers ---------- */
-// const fmtTime = (d) => {
-//   try {
-//     const date = new Date(d);
-//     return isNaN(date) ? "" : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-//   } catch {
-//     return "";
-//   }
-// };
-
-// const fileSize = (bytes = 0) => {
-//   if (!bytes) return "";
-//   const kb = bytes / 1024;
-//   if (kb < 1024) return `${Math.round(kb)} KB`;
-//   return `${(kb / 1024).toFixed(2)} MB`;
-// };
-
-// const getTextFromMessage = (m) => {
-//   if (m?.text) return m.text;
-//   if (m?.content) return m.content;
-//   if (m?.message) return m.message;
-//   if (m?.messageType === "image") return "🖼️ Photo";
-//   if (m?.messageType === "audio" || m?.messageType === "voice") return "🎙️ Voice message";
-//   if (m?.messageType === "file") return "📎 File";
-//   return "";
-// };
-
-// const dedupeMessages = (arr = []) => {
-//   const map = new Map();
-//   for (const m of arr || []) {
-//     if (!m) continue;
-//     if (m._id) {
-//       map.set(m._id, m);
-//     } else {
-//       const t = new Date(m.createdAt || m.timestamp || m.time || 0).getTime();
-//       const key = `${m.clientNonce || ""}-${t}-${m.text || m.url || Math.random()}`;
-//       if (!map.has(key)) map.set(key, m);
-//     }
-//   }
-//   return Array.from(map.values()).sort(
-//     (a, b) =>
-//       new Date(a.createdAt || a.timestamp || 0) - new Date(b.createdAt || b.timestamp || 0)
-//   );
-// };
-
-// const EMOJIS = [
-//   "😀",
-//   "😁",
-//   "😂",
-//   "🤣",
-//   "😃",
-//   "😄",
-//   "😅",
-//   "😆",
-//   "😉",
-//   "😊",
-//   "🙂",
-//   "🙃",
-//   "😋",
-//   "😎",
-//   "😍",
-//   "😘",
-//   "🥰",
-//   "😇",
-//   "🤩",
-//   "🥳",
-//   "😏",
-//   "😒",
-//   "😞",
-//   "😔",
-//   "👍",
-//   "👎",
-//   "👌",
-//   "✌️",
-//   "🤞",
-//   "🤟",
-//   "🤘",
-//   "🤙",
-//   "🙏",
-//   "👏",
-//   "🙌",
-//   "🫶",
-//   "💪",
-//   "💖",
-//   "💬",
-//   "✅",
-//   "❌",
-//   "❗",
-//   "❓",
-//   "⚠️",
-// ];
-
-
-// const safeText = (v) => (typeof v === "string" ? v : "");
-// const EMOJI_RE = /^(?:\p{Emoji_Presentation}|\p{Extended_Pictographic}|\p{Emoji}|\s)+$/u;
-// const isEmojiOnly = (s = "") => !!s && EMOJI_RE.test(s);
-
-// const getId = (x) => (typeof x === "string" ? x : x?._id || x?.id || x);
-// const isAdminOfGroup = (group, user) => {
-//   const uid = getId(user);
-//   const arr = group?.admins || [];
-//   return arr.some((a) => getId(a) === uid);
-// };
-
-// const normalizeMessage = (rawIn) => {
-//   if (!rawIn) return null;
-//   const m = rawIn.message ? rawIn.message : rawIn;
-
-//   const senderObj = m.msgByUser || m.sender || m.user || m.from || null;
-//   const senderId =
-//     (typeof senderObj === "object" ? senderObj?._id : senderObj) ||
-//     m.userId ||
-//     m.senderId ||
-//     null;
-
-//   const createdAt = m.createdAt || m.timestamp || m.time || new Date().toISOString();
-
-//   const text =
-//     m.text ??
-//     m.content ??
-//     (typeof m.message === "string" ? m.message : null) ??
-//     m.body ??
-//     "";
-
-//   const url =
-//     m.url ??
-//     m.fileUrl ??
-//     m.mediaUrl ??
-//     m.attachmentUrl ??
-//     m.imageUrl ??
-//     m.audioUrl ??
-//     m.videoUrl ??
-//     null;
-
-//   const fileName = m.fileName || m.filename || m.name || null;
-//   const size =
-//     typeof m.size === "number"
-//       ? m.size
-//       : typeof m.fileSize === "number"
-//       ? m.fileSize
-//       : null;
-
-//   let messageType =
-//     m.messageType ||
-//     m.type ||
-//     m.msgType ||
-//     (url
-//       ? m.fileType?.startsWith("image")
-//         ? "image"
-//         : m.fileType?.startsWith("audio")
-//         ? "audio"
-//         : "file"
-//       : undefined);
-
-//   if (!messageType) {
-//     if (url) {
-//       const low = String(url).toLowerCase();
-//       if (low.match(/\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/)) messageType = "image";
-//       else if (low.match(/\.(mp3|wav|m4a|ogg|webm)(\?|$)/)) messageType = "audio";
-//       else messageType = "file";
-//     } else {
-//       messageType = "text";
-//     }
-//   }
-//   if (messageType === "voice") messageType = "audio";
-
-//   const clientNonce = m.clientNonce || rawIn.clientNonce || null;
-
-//   const translatedText = m.translatedText ?? m.translatedMessage ?? m.translatedVoiceText ?? null;
-//   const translatedVoiceText = m.translatedVoiceText ?? null;
-//   const originalVoiceText = m.originalVoiceText ?? m.voiceTranscription ?? null;
-
-//   return {
-//     ...m,
-//     _id: m._id || rawIn._id || undefined,
-//     groupId: m.groupId || rawIn.groupId || undefined,
-//     sender: senderObj,
-//     msgByUser: senderObj,
-//     senderId,
-//     createdAt,
-//     text,
-//     url,
-//     fileName,
-//     size,
-//     fileSize: size ?? m.fileSize ?? null,
-//     messageType,
-//     clientNonce,
-//     translatedText,
-//     translatedVoiceText,
-//     originalVoiceText,
-//   };
-// };
-
-// /* ---------- FAST append helpers (avoid global sorts on every add) ---------- */
-// const appendUnique = (list, item) => {
-//   if (!item) return list;
-//   if (item._id && list.some((x) => x && x._id === item._id)) return list;
-
-//   const t = new Date(item.createdAt || item.timestamp || 0).getTime();
-//   const key = `${item.clientNonce || ""}-${t}-${item.text || item.url || ""}`;
-//   if (
-//     list.some(
-//       (x) =>
-//         !x?._id &&
-//         x &&
-//         `${x.clientNonce || ""}-${new Date(x.createdAt || x.timestamp || 0).getTime()}-${x.text || x.url || ""}` === key
-//     )
-//   ) {
-//     return list;
-//   }
-//   return [...list, item];
-// };
-
-// const appendChrono = (list, item) => {
-//   if (!item) return list;
-//   const at = new Date(item.createdAt || item.timestamp || 0).getTime();
-//   const last = list.length
-//     ? new Date(list[list.length - 1]?.createdAt || list[list.length - 1]?.timestamp || 0).getTime()
-//     : -Infinity;
-//   if (at >= last) return appendUnique(list, item);
-//   // rare out-of-order fallback
-//   return dedupeMessages([...list, item]);
-// };
-
-// /* =========================== Member Picker =========================== */
-// const MemberPicker = ({ open, onClose, onSubmit, excludeIds = [] }) => {
-//   const [query, setQuery] = useState("");
-//   const [results, setResults] = useState([]);
-//   const [selected, setSelected] = useState([]);
-
-//   useEffect(() => {
-//     if (!open) return;
-//     setQuery("");
-//     setResults([]);
-//     setSelected([]);
-//   }, [open]);
-
-//   const searchUsers = async (q) => {
-//     try {
-//       const { data } = await http.post("/api/searchUser", { searchRes: q });
-//       const list = data?.users || [];
-//       const filtered = list.filter((u) => !excludeIds.includes(u._id));
-//       setResults(filtered);
-//     } catch (err) {
-//       toast.error(err?.response?.data?.message || "Failed to search users");
-//     }
-//   };
-
-//   useEffect(() => {
-//     const t = setTimeout(() => {
-//       if (query.trim()) searchUsers(query.trim());
-//       else setResults([]);
-//     }, 300);
-//     return () => clearTimeout(t);
-//   }, [query]);
-
-//   const toggle = (u) =>
-//     setSelected((prev) =>
-//       prev.find((p) => p._id === u._id) ? prev.filter((p) => p._id !== u._id) : [...prev, u]
-//     );
-
-//   return (
-//     <Modal
-//       open={open}
-//       onClose={onClose}
-//       title="Add members"
-//       zIndex={1100}
-//       footer={
-//         <div className="flex justify-between items-center w-full">
-//           <div className="text-sm text-zinc-400">{selected.length} selected</div>
-//           <div className="flex gap-2">
-//             <button onClick={onClose} className="px-3 py-1.5 rounded-lg bg-zinc-700 text-zinc-200 hover:bg-zinc-600">
-//               Close
-//             </button>
-//             <button
-//               onClick={() => {
-//                 if (!selected.length) return toast.error("Pick at least one member");
-//                 onSubmit(selected);
-//               }}
-//               className="px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-500"
-//             >
-//               Add
-//             </button>
-//           </div>
-//         </div>
-//       }
-//     >
-//       <div className="space-y-3">
-//         <input
-//           value={query}
-//           onChange={(e) => setQuery(e.target.value)}
-//           placeholder="Search name or email"
-//           className="w-full bg-[#0e1013] border border-zinc-700 rounded-xl px-3 py-2 text-zinc-200 outline-none focus:border-zinc-500"
-//         />
-//         <div className="max-h-72 overflow-y-auto space-y-1">
-//           {results.map((u) => {
-//             const isPicked = !!selected.find((s) => s._id === u._id);
-//             return (
-//               <button
-//                 key={u._id}
-//                 onClick={() => toggle(u)}
-//                 className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border ${
-//                   isPicked ? "border-green-600 bg-green-600/10" : "border-zinc-700 hover:bg-zinc-800/40"
-//                 } text-left`}
-//               >
-//                 <div className="text-zinc-100">
-//                   <div className="font-medium">{u.name || u.email}</div>
-//                   <div className="text-xs text-zinc-400">{u.email}</div>
-//                 </div>
-//                 <span className="text-xs text-zinc-400">{isPicked ? "Selected" : "Pick"}</span>
-//               </button>
-//             );
-//           })}
-//           {!results.length && query && <p className="text-sm text-zinc-500 px-1">No users found.</p>}
-//         </div>
-//       </div>
-//     </Modal>
-//   );
-// };
-
-// /* ---------- media bubbles (memoized) ---------- */
-// const Lightbox = ({ open, src, onClose, caption }) => {
-//   if (!open) return null;
-//   return (
-//     <div className="fixed inset-0 bg-black/90 z-[80] flex items-center justify-center p-4" onClick={onClose}>
-//       <img loading="lazy" src={src} alt={caption || "image"} className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain" />
-//     </div>
-//   );
-// };
-
-// const VoiceBubble = React.memo(function VoiceBubble({ src }) {
-//   const audioRef = useRef(null);
-//   const [playing, setPlaying] = useState(false);
-//   const [cur, setCur] = useState(0);
-//   const [dur, setDur] = useState(0);
-
-//   useEffect(() => {
-//     const a = audioRef.current;
-//     if (!a) return;
-//     const onTime = () => setCur(a.currentTime || 0);
-//     const onMeta = () => setDur(a.duration || 0);
-//     const onEnd = () => setPlaying(false);
-//     a.addEventListener("timeupdate", onTime);
-//     a.addEventListener("loadedmetadata", onMeta);
-//     a.addEventListener("ended", onEnd);
-//     return () => {
-//       a.removeEventListener("timeupdate", onTime);
-//       a.removeEventListener("loadedmetadata", onMeta);
-//       a.removeEventListener("ended", onEnd);
-//     };
-//   }, []);
-
-//   const toggle = () => {
-//     const a = audioRef.current;
-//     if (!a) return;
-//     if (a.paused) {
-//       a.play().catch(() => {});
-//       setPlaying(true);
-//     } else {
-//       a.pause();
-//       setPlaying(false);
-//     }
-//   };
-
-//   const pct = dur ? (cur / dur) * 100 : 0;
-//   const mmss = (s) => {
-//     if (!Number.isFinite(s) || s < 0) s = 0;
-//     const m = Math.floor(s / 60).toString().padStart(2, "0");
-//     const sec = Math.floor(s % 60).toString().padStart(2, "0");
-//     return `${m}:${sec}`;
-//   };
-
-//   return (
-//     <div className="flex items-center gap-3 text-zinc-100">
-//       <button onClick={toggle} className="w-9 h-9 rounded-full grid place-items-center bg-black/20 hover:opacity-90" title={playing ? "Pause" : "Play"}>
-//         {playing ? <Pause size={18} /> : <Play size={18} />}
-//       </button>
-//       <div className="w-40 sm:w-56 md:w-72">
-//         <div className="h-1.5 rounded-full bg-zinc-300/30">
-//           <div className="h-1.5 rounded-full bg-zinc-100" style={{ width: `${pct}%` }} />
-//         </div>
-//         <div className="text-[10px] mt-1 opacity-80">
-//           {mmss(cur)} / {mmss(dur || 0)}
-//         </div>
-//       </div>
-//       <audio ref={audioRef} src={src} preload="metadata" className="hidden" />
-//     </div>
-//   );
-// });
-
-// const FileBubble = React.memo(function FileBubble({ url, fileName, size }) {
-//   const name = fileName || url?.split("/").pop() || "File";
-//   return (
-//     <div className="flex items-center gap-3 p-2 rounded-xl bg-black/10">
-//       <div className="w-10 h-10 rounded-lg bg-black/20 grid place-items-center">
-//         <FileText />
-//       </div>
-//       <div className="min-w-0 flex-1">
-//         <div className="text-sm truncate">{name}</div>
-//         <div className="text-[11px] opacity-70">{fileSize(size)}</div>
-//       </div>
-//       {!!url && (
-//         <>
-//           <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs underline opacity-90 hover:opacity-100">Open</a>
-//           <a href={url} download={name} className="text-xs underline opacity-90 hover:opacity-100">Download</a>
-//         </>
-//       )}
-//     </div>
-//   );
-// });
-
-// const ImageBubble = React.memo(function ImageBubble({ url, fileName }) {
-//   const [open, setOpen] = useState(false);
-//   return (
-//     <>
-//       <div className="overflow-hidden rounded-xl border border-white/10 bg-black/10">
-//         <img
-//           loading="lazy"
-//           src={url}
-//           alt={fileName || "image"}
-//           className="max-h-72 object-cover cursor-zoom-in max-w-[min(80vw,420px)]"
-//           onClick={() => setOpen(true)}
-//         />
-//         <div className="flex items-center justify-between px-2 py-1 text-[11px] opacity-80">
-//           <div className="flex items-center gap-1">
-//             <ImageIcon size={12} /> {fileName || "Image"}
-//           </div>
-//           <a href={url} target="_blank" rel="noopener noreferrer" download className="underline">
-//             Download
-//           </a>
-//         </div>
-//       </div>
-//       <Lightbox open={open} src={url} onClose={() => setOpen(false)} caption={fileName} />
-//     </>
-//   );
-// });
-
-// /* ---------- safe back helper ---------- */
-// const useSafeBack = () => {
-//   const navigate = useNavigate();
-//   const canGoBack =
-//     (typeof window !== "undefined" && window.history?.state && window.history.state.idx > 0) ||
-//     (typeof window !== "undefined" && window.history.length > 1);
-//   return (fallback = "/g") => (canGoBack ? navigate(-1) : navigate(fallback));
-// };
-
-// /* =========================== Main =========================== */
-// export default function GroupsChatContainer({ embedded = false, initialGroupId }) {
-//   const navigate = useNavigate();
-//   const location = useLocation();
-//   const params = useParams(); // /g/:groupId
-//   const routeGroupId = params?.groupId || null;
-//   const effectiveGroupId = routeGroupId || initialGroupId || null;
-
-//   const socket = GetSocket();
-
-//   const [userLS] = useLocalStorage({ key: "userData" });
-//   const myId = useMemo(() => userLS?._id || null, [userLS]);
-
-//   const safeBack = useSafeBack();
-
-//   /* responsive drawers */
-//   const [showLeft, setShowLeft] = useState(!embedded);
-//   const [showMembersMobile, setShowMembersMobile] = useState(false);
-
-//   /* groups */
-//   const [allGroups, setAllGroups] = useState([]);
-//   const [groups, setGroups] = useState([]);
-//   const [searchQ, setSearchQ] = useState("");
-//   const [loadingGroups, setLoadingGroups] = useState(false);
-//   const [firstLoad, setFirstLoad] = useState(true);
-
-//   /* message actions */
-//   const [openMenuFor, setOpenMenuFor] = useState(null);
-//   const [editingId, setEditingId] = useState(null);
-//   const [editDraft, setEditDraft] = useState("");
-
-//   /* active + messages */
-//   const [active, setActive] = useState(null);
-//   const [messages, setMessages] = useState([]);
-//   const [sending, setSending] = useState(false);
-
-//   const messagesEndRef = useRef(null);
-//   const listRef = useRef(null);
-
-//   /* seen tracking */
-//   const [seenByMap, setSeenByMap] = useState({});
-//   const seenThrottleRef = useRef(0);
-
-//   /* create group UI (driven by ?new=1) */
-//   const [createOpen, setCreateOpen] = useState(false);
-//   const [gName, setGName] = useState("");
-//   const [gMembers, setGMembers] = useState([]);
-//   const [gPhotoFile, setGPhotoFile] = useState(null);
-//   const [gPhotoPreview, setGPhotoPreview] = useState(null);
-//   const [creating, setCreating] = useState(false);
-
-//   /* modals & confirms */
-//   const [pickerOpen, setPickerOpen] = useState(false);
-//   const [confirmDelete, setConfirmDelete] = useState(false);
-//   const [confirmLeave, setConfirmLeave] = useState(false);
-//   const [settingsOpen, setSettingsOpen] = useState(false);
-
-//   /* emoji picker toggle */
-//   const [showEmoji, setShowEmoji] = useState(false);
-
-//   /* recording */
-//   const recordRef = useRef(null);
-//   const [recording, setRecording] = useState(false);
-
-//   /* unread counts client-side */
-//   const [unread, setUnread] = useState({});
-
-//   /* input */
-//   const [newMsg, setNewMsg] = useState("");
-
-//   /* settings modal state */
-//   const [pastMembers, setPastMembers] = useState([]);
-//   const [settingsDraft, setSettingsDraft] = useState({ name: "", profilePic: "" });
-
-//   /* translation UI state */
-//   const [showOriginalMap, setShowOriginalMap] = useState({});
-//   const [showVoiceOriginalMap, setShowVoiceOriginalMap] = useState({});
-//   const [translatingMessageId, setTranslatingMessageId] = useState(null);
-
-//   /* ======== WINDOWED RENDERING for big threads ======== */
-//   const WINDOW = 200;
-//   const STEP = 200;
-//   const [startIdx, setStartIdx] = useState(0);
-
-//   const visibleMessages = useMemo(() => {
-//     const n = Array.isArray(messages) ? messages.length : 0;
-//     if (n <= WINDOW) return messages || [];
-//     const start = Math.max(0, n - WINDOW - startIdx);
-//     const end = n - startIdx;
-//     return (messages || []).slice(start, end);
-//   }, [messages, startIdx]);
-
-//   useEffect(() => {
-//     if (!Array.isArray(messages)) setMessages(Array.isArray(messages) ? messages : []);
-//   }, [messages]);
-
-//   /* load groups */
-//   const loadMyGroups = async () => {
-//     try {
-//       setLoadingGroups(true);
-//       const { data } = await http.get("/api/groups");
-//       const list = data?.groups || [];
-//       setAllGroups(list);
-//       setGroups(list);
-//     } catch (err) {
-//       toast.error(err?.response?.data?.message || "Failed to load groups");
-//     } finally {
-//       setLoadingGroups(false);
-//     }
-//   };
-
-//   useEffect(() => {
-//     (async () => {
-//       await loadMyGroups();
-//       setFirstLoad(false);
-//     })();
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, []);
-
-//   /* modal control: open only when ?new=1 */
-//   useEffect(() => {
-//     const params = new URLSearchParams(location.search);
-//     setCreateOpen(params.get("new") === "1");
-//   }, [location.search]);
-
-//   /* open group from route/prop */
-//   useEffect(() => {
-//     if (effectiveGroupId) openGroup(effectiveGroupId);
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, [effectiveGroupId]);
-
-//   useEffect(() => {
-//     if (!routeGroupId && !initialGroupId) {
-//       setActive(null);
-//       setMessages([]);
-//       setSeenByMap({});
-//       if (!embedded) setShowLeft(true);
-//     }
-//   }, [routeGroupId, initialGroupId, embedded]);
-
-//   /* search filter */
-//   useEffect(() => {
-//     const q = (searchQ || "").trim().toLowerCase();
-//     if (!q) setGroups(allGroups);
-//     else setGroups(allGroups.filter((g) => (g?.name || "").toLowerCase().includes(q)));
-//   }, [searchQ, allGroups]);
-
-//   /* fetch past members (used in settings) */
-//   const fetchPastMembers = useCallback(
-//     async (gid) => {
-//       if (!gid) return setPastMembers([]);
-//       try {
-//         const { data } = await http.get(`/api/groups/${gid}/past-members`).catch(() => ({ data: null }));
-//         if (data?.pastMembers || data?.users) {
-//           setPastMembers(data.pastMembers || data.users || []);
-//           return;
-//         }
-//         const alt = await http.post(`/api/groups/past-members`, { groupId: gid }).catch(() => ({ data: null }));
-//         if (alt?.data?.pastMembers || alt?.data?.users) {
-//           setPastMembers(alt.data.pastMembers || alt.data.users || []);
-//           return;
-//         }
-//         setPastMembers(Array.isArray(active?.pastMembers) ? active.pastMembers : []);
-//       } catch {
-//         setPastMembers(Array.isArray(active?.pastMembers) ? active.pastMembers : []);
-//       }
-//     },
-//     [active]
-//   );
-
-//   useEffect(() => {
-//     if (!settingsOpen || !active?._id) return;
-//     setSettingsDraft({
-//       name: active.name || "",
-//       profilePic: active.profilePic || "",
-//     });
-//     fetchPastMembers(active._id);
-//   }, [settingsOpen, active?._id, fetchPastMembers]);
-
-//   /* seen emit (throttled) */
-//   const emitSeenGroup = useCallback(() => {
-//     if (!socket || !active?._id || !myId) return;
-//     const now = Date.now();
-//     if (now - (seenThrottleRef.current || 0) < 1500) return;
-//     seenThrottleRef.current = now;
-//     socket.emit("seenGroup", { groupId: active._id, userId: myId });
-//   }, [socket, active?._id, myId]);
-
-//   /* replace optimistic with saved */
-//   const replaceOptimisticWithSaved = useCallback((savedRaw) => {
-//     const savedMsg = normalizeMessage(savedRaw);
-//     if (!savedMsg) return;
-
-//     const savedId = savedMsg._id;
-//     const savedSender =
-//       (typeof savedMsg.msgByUser === "object" ? savedMsg.msgByUser?._id : savedMsg.msgByUser) ||
-//       (typeof savedMsg.sender === "object" ? savedMsg.sender?._id : savedMsg.sender);
-
-//     const savedType  = savedMsg.messageType || "text";
-//     const savedNonce = savedMsg.clientNonce;
-//     const savedText  = (getTextFromMessage(savedMsg) || "").trim().replace(/\s+/g, " ");
-//     const savedUrl   = savedMsg.url || "";
-//     const savedAt    = new Date(savedMsg.createdAt || savedMsg.timestamp || Date.now()).getTime();
-
-//     const mergePreserving = (oldM, newM) => {
-//       const merged = { ...oldM, ...newM };
-//       merged.url = newM.url ?? oldM.url ?? null;
-//       merged.fileName = newM.fileName ?? oldM.fileName ?? oldM.filename ?? oldM.name ?? null;
-//       const newSize =
-//         typeof newM.size === "number" ? newM.size :
-//         typeof newM.fileSize === "number" ? newM.fileSize : null;
-//       const oldSize =
-//         typeof oldM.size === "number" ? oldM.size :
-//         typeof oldM.fileSize === "number" ? oldM.fileSize : null;
-//       merged.size = newSize ?? oldSize ?? null;
-//       merged.fileSize = merged.size;
-
-//       merged.translatedText =
-//         newM.translatedText ?? newM.translatedMessage ?? oldM.translatedText ?? oldM.translatedMessage ?? null;
-//       merged.translatedVoiceText = newM.translatedVoiceText ?? oldM.translatedVoiceText ?? null;
-//       merged.originalVoiceText =
-//         newM.originalVoiceText ?? newM.voiceTranscription ?? oldM.originalVoiceText ?? oldM.voiceTranscription ?? null;
-
-//       return merged;
-//     };
-
-//     setMessages((prev) => {
-//       const prevArr = Array.isArray(prev) ? prev : [];
-//       let replaced = false;
-
-//       let next = prevArr.map((m) => {
-//         if (m._id && savedId && m._id === savedId) { replaced = true; return mergePreserving(m, savedMsg); }
-//         if (m.__temp && savedNonce && m.clientNonce && m.clientNonce === savedNonce) { replaced = true; return mergePreserving(m, savedMsg); }
-
-//         if (m.__temp) {
-//           const mSender =
-//             (typeof m.msgByUser === "object" ? m.msgByUser?._id : m.msgByUser) ||
-//             (typeof m.sender === "object" ? m.sender?._id : m.sender);
-
-//           const sameSender = String(mSender || "") === String(savedSender || "");
-//           const sameType   = (m.messageType || "text") === savedType;
-
-//           const mText    = (getTextFromMessage(m) || "").trim().replace(/\s+/g, " ");
-//           const sameText = !!savedText && mText === savedText;
-//           const sameUrl  = !!savedUrl && m.url === savedUrl;
-
-//           const mAt = new Date(m.createdAt || m.timestamp || 0).getTime();
-//           const closeInTime = Math.abs(savedAt - mAt) < 10000;
-
-//           if (sameSender && sameType && (sameText || sameUrl) && closeInTime) {
-//             replaced = true;
-//             return mergePreserving(m, savedMsg);
-//           }
-//         }
-//         return m;
-//       });
-
-//       if (!replaced) next = appendChrono(prevArr, savedMsg);
-
-//       return next;
-//     });
-//   }, []);
-
-//   const appendIncomingMessage = useCallback((incoming) => {
-//     const normalized = normalizeMessage(incoming);
-//     if (!normalized) return;
-//     setMessages((prev) => appendChrono(Array.isArray(prev) ? prev : [], normalized));
-//   }, []);
-
-
-//   /* open group */
-//   const openGroup = async (groupId) => {
-//     if (!groupId) return;
-//     try {
-//       setActive(null);
-//       setMessages([]);
-//       setSeenByMap({});
-//       setStartIdx(0);
-//       const { data } = await http.get(`/api/groups/${groupId}`);
-//       const group = data?.group;
-//       const initialMessages = data?.messages || data?.groupMessages || [];
-//       setActive(group || null);
-//       setMessages(
-//         Array.isArray(initialMessages)
-//           ? dedupeMessages(initialMessages.map(normalizeMessage))
-//           : []
-//       );
-//       if (socket && group) {
-//         socket.emit("msgPageGroup", group._id);
-//         setTimeout(() => emitSeenGroup(), 80);
-//       }
-//       setUnread((u) => ({ ...u, [groupId]: 0 }));
-//       if (!embedded) setShowLeft(false);
-//     } catch (err) {
-//       toast.error(err?.response?.data?.message || "Failed to load group");
-//     }
-//   };
-  
-
-//   /* sockets */
-//   useEffect(() => {
-//     if (!socket) return;
-
-//     const onGroupMessagePatched = (payload) => {
-//       const patched = normalizeMessage(payload?.message || payload);
-//       if (!patched?._id) return;
-//       setMessages((prev) =>
-//         (Array.isArray(prev) ? prev : []).map((m) =>
-//           String(m._id) === String(patched._id) ? { ...m, ...patched } : m
-//         )
-//       );
-//     };
-
-//     const onGroupInfo = (group) => {
-//       if (!group?._id) return;
-//       setAllGroups((prev) => {
-//         const idx = prev.findIndex((g) => g._id === group._id);
-//         if (idx === -1) return [group, ...prev];
-//         return prev.map((g) => (g._id === group._id ? group : g));
-//       });
-//       setGroups((prev) => {
-//         const idx = prev.findIndex((g) => g._id === group._id);
-//         if (idx === -1) return [group, ...prev];
-//         return prev.map((g) => (g._id === group._id ? group : g));
-//       });
-//       setActive((cur) => (cur && cur._id === group._id ? group : cur));
-//       if (settingsOpen && active && group._id === active._id) fetchPastMembers(group._id);
-//     };
-
-//     const onGroupMessages = (payload) => {
-//       if (!payload) return;
-
-//       if (Array.isArray(payload)) {
-//         setMessages(dedupeMessages(payload.map(normalizeMessage)));
-//         return;
-//       }
-
-//       if (payload?.groupId && payload?.messages) {
-//         if (!active || payload.groupId === active._id) {
-//           const list = Array.isArray(payload.messages) ? payload.messages : [payload.messages];
-//           list.map(normalizeMessage).forEach((msg) => replaceOptimisticWithSaved(msg));
-//         }
-//         return;
-//       }
-
-//       const single = payload?.message || payload;
-//       if (single) replaceOptimisticWithSaved(single);
-//     };
-
-//     const onNewGroupMsg = (msg) => {
-//       if (!msg) return;
-//       const m = normalizeMessage(msg?.message || msg);
-//       const groupId = m.groupId || msg.groupId;
-//       if (!groupId) return;
-
-//       const lastText = getTextFromMessage(m);
-//       setAllGroups((prev) => {
-//         const copy = [...prev];
-//         const idx = copy.findIndex((g) => g._id === groupId);
-//         if (idx !== -1) {
-//           const g = { ...copy[idx], lastMessage: { text: lastText, time: m.createdAt || new Date() } };
-//           copy.splice(idx, 1);
-//           copy.unshift(g);
-//         }
-//         return copy;
-//       });
-//       setGroups((prev) => {
-//         const copy = [...prev];
-//         const idx = copy.findIndex((g) => g._id === groupId);
-//         if (idx !== -1) {
-//           const g = { ...copy[idx], lastMessage: { text: lastText, time: m.createdAt || new Date() } };
-//           copy.splice(idx, 1);
-//           copy.unshift(g);
-//         }
-//         return copy;
-//       });
-
-//       if (active && groupId === active._id) {
-//         if (m._id) replaceOptimisticWithSaved(m);
-//       } else {
-//         setUnread((u) => ({ ...u, [groupId]: (u[groupId] || 0) + 1 }));
-//       }
-//     };
-
-//     const onSeenUpdate = ({ groupId, seenBy, messageIds }) => {
-//       if (!active || groupId !== active._id) return;
-
-//       setMessages((prev) =>
-//         (prev || []).map((m) => (messageIds.includes(m._id) ? { ...m, seen: true } : m))
-//       );
-
-//       setSeenByMap((prev) => {
-//         const next = { ...prev };
-//         for (const id of messageIds) {
-//           const arr = next[id] || [];
-//           if (!arr.includes(seenBy)) next[id] = [...arr, seenBy];
-//         }
-//         return next;
-//       });
-//     };
-
-//     const onGroupTranslationOk = (data) => {
-//       setMessages((prev) =>
-//         (Array.isArray(prev) ? prev : []).map((m) =>
-//           String(m._id) === String(data.messageId)
-//             ? { ...m, translatedText: data.translatedText }
-//             : m
-//         )
-//       );
-//       setTranslatingMessageId(null);
-//     };
-//     const onGroupTranslationErr = () => setTranslatingMessageId(null);
-
-//     socket.on("groupInfo", onGroupInfo);
-//     socket.on("groupMessages", onGroupMessages);
-//     socket.on("receive-group-msg", onNewGroupMsg);
-//     socket.on("group:new", onNewGroupMsg);
-//     socket.on("seenGroupUpdate", onSeenUpdate);
-//     socket.on("groupTranslationResult", onGroupTranslationOk);
-//     socket.on("groupTranslationError", onGroupTranslationErr);
-//     socket.on("groupMessagePatched", onGroupMessagePatched);
-//     return () => {
-//       socket.off("groupInfo", onGroupInfo);
-//       socket.off("groupMessages", onGroupMessages);
-//       socket.off("receive-group-msg", onNewGroupMsg);
-//       socket.off("group:new", onNewGroupMsg);
-//       socket.off("seenGroupUpdate", onSeenUpdate);
-//       socket.off("groupTranslationResult", onGroupTranslationOk);
-//       socket.off("groupTranslationError", onGroupTranslationErr);
-//       socket.off("groupMessagePatched", onGroupMessagePatched);
-//     };
-//   }, [socket, active, replaceOptimisticWithSaved, settingsOpen, fetchPastMembers]);
-
-//   /* auto scroll + mark seen when at bottom, optimized for windowed list */
-//   useEffect(() => {
-//     const behavior = (visibleMessages?.length || 0) > 150 ? "auto" : "smooth";
-//     messagesEndRef.current?.scrollIntoView({ behavior });
-
-//     const el = listRef.current;
-//     if (!el) return;
-//     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 48;
-//     if (nearBottom) emitSeenGroup();
-//   }, [visibleMessages, emitSeenGroup]);
-
-//   /* close kebab on outside click (mousedown = earlier) */
-//   useEffect(() => {
-//     const close = () => setOpenMenuFor(null);
-//     document.addEventListener("mousedown", close);
-//     return () => document.removeEventListener("mousedown", close);
-//   }, []);
-
-//   /* on scroll, update seen if near bottom */
-//   useEffect(() => {
-//     const el = listRef.current;
-//     if (!el) return;
-//     const onScroll = () => {
-//       if (el.scrollTop + el.clientHeight >= el.scrollHeight - 48) {
-//         emitSeenGroup();
-//       }
-//     };
-//     el.addEventListener("scroll", onScroll, { passive: true });
-//     return () => el.removeEventListener("scroll", onScroll);
-//   }, [emitSeenGroup]);
-
-//   /* on window focus, emit seen */
-//   useEffect(() => {
-//     const onFocus = () => emitSeenGroup();
-//     window.addEventListener("focus", onFocus);
-//     return () => window.removeEventListener("focus", onFocus);
-//   }, [emitSeenGroup]);
-
-//   /* seed translation toggles */
-//   useEffect(() => {
-//     const t = { ...showOriginalMap };
-//     const v = { ...showVoiceOriginalMap };
-//     for (const m of Array.isArray(messages) ? messages : []) {
-//       if (!m?._id) continue;
-//       if (!(m._id in t)) t[m._id] = false;
-//       if (!(m._id in v)) v[m._id] = false;
-//     }
-//     setShowOriginalMap(t);
-//     setShowVoiceOriginalMap(v);
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, [messages]);
-
-//   const requestGroupTranslation = useCallback(
-//     (messageId) => {
-//       if (!socket || !active?._id || !messageId) return;
-//       setTranslatingMessageId(messageId);
-//       socket.emit("translateGroupMessage", { groupId: active._id, messageId });
-//     },
-//     [socket, active?._id]
-//   );
-
-//   /* send text */
-//   const sendGroupMessage = async () => {
-//     if (!newMsg?.trim() || !active || !myId || !socket) return;
-//     if (sending) return;
-//     const text = newMsg.trim();
-//     setSending(true);
-//     setShowEmoji(false);
-
-//     const clientNonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-//     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-//     const optimistic = normalizeMessage({
-//       _id: tempId,
-//       groupId: active._id,
-//       msgByUser: myId,
-//       sender: myId,
-//       text,
-//       messageType: "text",
-//       createdAt: new Date().toISOString(),
-//       senderName: "You",
-//       __temp: true,
-//       clientNonce,
-//     });
-//     setMessages((prev) => appendChrono(Array.isArray(prev) ? prev : [], optimistic));
-//     setNewMsg("");
-
-//     try {
-//       const payload = { sender: myId, groupId: active._id, messageType: "text", text, clientNonce };
-//       socket.emit("newGroupMsg", payload, (ack) => {
-//         if (ack && ack.savedMessage) replaceOptimisticWithSaved(ack.savedMessage);
-//       });
-//     } catch {
-//       toast.error("Message failed");
-//       setMessages((prev) => (Array.isArray(prev) ? prev.filter((m) => m._id !== tempId) : []));
-//     } finally {
-//       setSending(false);
-//     }
-//   };
-
-//   /* uploads */
-//   const detectMessageType = (file) => {
-//     const t = file?.type || "";
-//     if (t.startsWith("image")) return "image";
-//     if (t.startsWith("audio")) return "audio";
-//     return "file";
-//   };
-
-//   const sendFile = async (file, kind) => {
-//     if (!file || !active || !myId || !socket) return;
-//     try {
-//       const to = toast.loading("Uploading...");
-//       const res = await uploadFile(file);
-//       toast.dismiss(to);
-//       const url = res?.secure_url;
-//       if (!url) throw new Error("Upload failed");
-
-//       const type = kind || detectMessageType(file);
-//       const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-//       const clientNonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-//       const serverPayload = {
-//         sender: myId,
-//         groupId: active._id,
-//         messageType: type,
-//         text: null,
-//         imageUrl: type === "image" ? url : undefined,
-//         audioUrl: type === "audio" ? url : undefined,
-//         videoUrl: type === "video" ? url : undefined,
-//         fileUrl: type === "file" ? url : undefined,
-//         fileName: file.name,
-//         size: file.size,
-//         clientNonce,
-//       };
-
-//       const optimistic = normalizeMessage({
-//         _id: tempId,
-//         groupId: active._id,
-//         msgByUser: myId,
-//         messageType: type,
-//         url,
-//         fileName: file.name,
-//         size: file.size,
-//         createdAt: new Date().toISOString(),
-//         __temp: true,
-//         clientNonce,
-//       });
-
-//       setMessages((prev) => appendChrono(Array.isArray(prev) ? prev : [], optimistic));
-
-//       socket.emit("newGroupMsg", serverPayload, (ack) => {
-//         if (ack && ack.savedMessage) replaceOptimisticWithSaved(ack.savedMessage);
-//       });
-//     } catch (err) {
-//       toast.error("Upload failed");
-//     }
-//   };
-
-//   /* recorder */
-//   const toggleRecord = async () => {
-//     try {
-//       if (recording) {
-//         recordRef.current?.stop();
-//         setRecording(false);
-//       } else {
-//         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-//         const recorder = new MediaRecorder(stream);
-//         const chunks = [];
-//         recorder.ondataavailable = (e) => chunks.push(e.data);
-//         recorder.onstop = async () => {
-//           const blob = new Blob(chunks, { type: "audio/webm" });
-//           const file = new File([blob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
-//           await sendFile(file, "audio");
-//           stream.getTracks().forEach((t) => t.stop());
-//         };
-//         recorder.start();
-//         recordRef.current = recorder;
-//         setRecording(true);
-//       }
-//     } catch {
-//       toast.error("Microphone access denied or not available");
-//     }
-//   };
-
-//   /* create group helpers */
-//   const onPickPhoto = (file) => {
-//     if (!file) {
-//       setGPhotoFile(null);
-//       setGPhotoPreview(null);
-//       return;
-//     }
-//     setGPhotoFile(file);
-//     const reader = new FileReader();
-//     reader.onload = () => setGPhotoPreview(reader.result);
-//     reader.readAsDataURL(file);
-//   };
-
-//   const resetCreate = () => {
-//     setCreateOpen(false);
-//     setGName("");
-//     setGMembers([]);
-//     setGPhotoFile(null);
-//     setGPhotoPreview(null);
-//     // drop ?new=1 from URL
-//     if (new URLSearchParams(location.search).get("new") === "1") {
-//       navigate("/g", { replace: true });
-//     }
-//   };
-
-//   const handleCreate = async () => {
-//     if (!gName.trim()) return toast.error("Group name required");
-//     if (!gMembers.length) return toast.error("Pick at least one member");
-//     if (creating) return;
-//     try {
-//       setCreating(true);
-//       let uploadedUrl = "";
-//       if (gPhotoFile) {
-//         const res = await uploadFile(gPhotoFile);
-//         uploadedUrl = res?.secure_url || "";
-//       }
-//       const payload = {
-//         name: gName.trim(),
-//         members: gMembers.map((m) => m._id),
-//         profilePic: uploadedUrl,
-//       };
-//       const { data } = await http.post("/api/groups/create", payload);
-//       const created = data?.group;
-//       if (!created) throw new Error("Create failed");
-//       toast.success("Group created");
-//       setAllGroups((prev) => [created, ...prev]);
-//       setGroups((prev) => [created, ...prev]);
-//       resetCreate();
-//       openGroup(created._id);
-//       if (!embedded) navigate(`/g/${created._id}`);
-//     } catch (e) {
-//       toast.error(e?.response?.data?.message || e?.message || "Create failed");
-//     } finally {
-//       setCreating(false);
-//     }
-//   };
-
-//   /* member/admin actions */
-//   const removeMember = async (userId) => {
-//     if (!active) return;
-//     try {
-//       await http.put("/api/groups/remove-member", { groupId: active._id, userId });
-//       toast.success("Member removed");
-//       openGroup(active._id);
-//       if (settingsOpen) fetchPastMembers(active._id);
-//     } catch (e) {
-//       toast.error(e?.response?.data?.message || "Remove failed");
-//     }
-//   };
-
-//   const startEdit = (m) => {
-//     setEditingId(m._id);
-//     setEditDraft(getTextFromMessage(m) || "");
-//     setOpenMenuFor(null);
-//   };
-
-//   const saveEdit = () => {
-//     if (!editingId || !active) return;
-//     const next = (editDraft || "").trim();
-//     if (!next) return toast.error("Message can’t be empty");
-
-//     // optimistic
-//     setMessages((prev) =>
-//       (prev || []).map((x) => (x._id === editingId ? { ...x, text: next, isEdited: true } : x))
-//     );
-
-//     // server
-//     socket?.emit("editGroupMsg", { groupId: active._id, messageId: editingId, text: next });
-//     setEditingId(null);
-//     setEditDraft("");
-//   };
-
-//   const cancelEdit = () => {
-//     setEditingId(null);
-//     setEditDraft("");
-//   };
-
-//   const deleteForMe = (m) => {
-//     // optimistic: hide locally
-//     setMessages((prev) => (prev || []).filter((x) => x._id !== m._id));
-//     // notify server
-//     socket?.emit("deleteGroupMsg", { groupId: active._id, messageId: m._id });
-//     setOpenMenuFor(null);
-//   };
-
-//   const makeAdmin = async (userId) => {
-//     if (!active) return;
-//     const attempts = [
-//       ["/api/groups/add-admin", { groupId: active._id, newAdminId: userId }],
-//       ["/api/groups/set-admin", { groupId: active._id, newAdminId: userId }],
-//       ["/api/groups/transfer-admin", { groupId: active._id, newAdminId: userId }],
-//     ];
-//     let lastErr = null;
-//     for (const [url, body] of attempts) {
-//       try {
-//         const { data } = await http.put(url, body);
-//         toast.success(data?.message || "Admin updated");
-//         await openGroup(active._id);
-//         return;
-//       } catch (e) {
-//         lastErr = e;
-//       }
-//     }
-//     toast.error(lastErr?.response?.data?.message || "Make admin failed");
-//   };
-
-//   const leaveGroup = async () => {
-//     if (!active) return;
-//     try {
-//       const { data } = await http.put("/api/groups/leave", { groupId: active._id });
-//       toast.success(data?.message || "You left the group");
-//       setAllGroups((prev) => prev.filter((g) => g._id !== active._id));
-//       setGroups((prev) => prev.filter((g) => g._id !== active._id));
-//       setActive(null);
-//       setMessages([]);
-//       if (!embedded) navigate("/");
-//     } catch (e) {
-//       toast.error(e?.response?.data?.message || "Leave failed");
-//     }
-//   };
-
-//   const deleteGroup = async () => {
-//     if (!active) return;
-//     try {
-//       const { data } = await http.delete("/api/groups/delete", { data: { groupId: active._id } });
-//       toast.success(data?.message || "Group deleted");
-//       setAllGroups((prev) => prev.filter((g) => g._id !== active._id));
-//       setGroups((prev) => prev.filter((g) => g._id !== active._id));
-//       setActive(null);
-//       setMessages([]);
-//       if (!embedded) navigate("/");
-//     } catch (e) {
-//       toast.error(e?.response?.data?.message || "Delete failed");
-//     }
-//   };
-
-//   const amAdmin = active ? isAdminOfGroup(active, myId) : false;
-
-//   /* group update */
-//   const updateGroup = async (patch) => {
-//     if (!active) return;
-//     const payload = { groupId: active._id, ...patch };
-//     const attempts = [
-//       () => http.put("/api/groups/update", payload),
-//       () => http.patch("/api/groups/update", payload),
-//     ];
-//     let updated = null;
-//     let lastErr = null;
-//     try {
-//       setActive((cur) => (cur ? { ...cur, ...patch } : cur));
-//       setAllGroups((prev) => prev.map((g) => (g._id === active._id ? { ...g, ...patch } : g)));
-//       setGroups((prev) => prev.map((g) => (g._id === active._id ? { ...g, ...patch } : g)));
-
-//       for (const req of attempts) {
-//         try {
-//           const { data } = await req();
-//           if (data?.group) {
-//             updated = data.group;
-//             break;
-//           }
-//         } catch (e) {
-//           lastErr = e;
-//         }
-//       }
-//       if (!updated) throw lastErr || new Error("Update failed");
-
-//       toast.success("Group updated");
-//       setActive(updated);
-//       setAllGroups((prev) => prev.map((g) => (g._id === updated._id ? updated : g)));
-//       setGroups((prev) => prev.map((g) => (g._id === updated._id ? updated : g)));
-//     } catch (e) {
-//       toast.error(e?.response?.data?.message || "Update failed");
-//       openGroup(active._id);
-//     }
-//   };
-
-//   const updatePhoto = async (file) => {
-//     if (!active || !file) return;
-//     try {
-//       const t = toast.loading("Uploading photo...");
-//       const res = await uploadFile(file);
-//       toast.dismiss(t);
-//       const url = res?.secure_url;
-//       if (!url) throw new Error("Upload failed");
-//       await updateGroup({ profilePic: url });
-//     } catch (e) {
-//       toast.error(e?.message || "Photo upload failed");
-//     }
-//   };
-
-//   /* emoji add */
-//   const addEmoji = (emo) => setNewMsg((s) => (s || "") + emo);
-
-//   /* file input ref */
-//   const fileRef = useRef();
-
-//   /* -------------------------- UI bits -------------------------- */
-//   const everyoneElseCountFor = (m) => {
-//     const senderId =
-//       (typeof m.msgByUser === "object" ? m.msgByUser?._id : m.msgByUser) ||
-//       (typeof m.sender === "object" ? m.sender?._id : m.sender);
-//     const members = active?.members || [];
-//     return Math.max(members.filter((u) => String(getId(u)) !== String(senderId)).length, 0);
-//   };
-
-//   const SeenTicks = React.memo(function SeenTicks({ m, isMe }) {
-//     if (!isMe || !m._id) return null;
-
-//     const totalOthers = everyoneElseCountFor(m);
-//     const seenArr = (seenByMap[m._id] || []).filter((uid) => String(uid) !== String(myId));
-//     const allSeen = totalOthers > 0 && seenArr.length >= totalOthers;
-
-//     return (
-//       <span className="inline-flex items-center gap-0.5 ml-1 align-middle">
-//         {allSeen ? <CheckCheck size={12} /> : <Check size={12} />}
-//       </span>
-//     );
-//   });
-
-//   const ChatHeader = React.memo(function ChatHeader() {
-//     return (
-//       <div className="h-14 px-2 sm:px-4 border-b border-zinc-800 flex items-center justify-between">
-//         <div className="flex items-center gap-3 min-w-0">
-//           {!embedded && (
-//             <button className="lg:hidden p-2 rounded-lg hover:bg-zinc-800" onClick={() => setShowLeft(true)} title="Groups">
-//               <ChevronLeft />
-//             </button>
-//           )}
-//           {embedded && (
-//             <button className="p-2 rounded-lg hover:bg-zinc-800" onClick={() => safeBack("/g")} title="Back">
-//               <ChevronLeft />
-//             </button>
-//           )}
-//           <img loading="lazy" src={active.profilePic || "/group-placeholder.png"} alt="" className="w-9 h-9 rounded-full object-cover" />
-//           <div className="min-w-0">
-//             <div className="flex items-center gap-2 min-w-0">
-//               <h2 className="font-semibold truncate">{active.name}</h2>
-//               {amAdmin && (
-//                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-700/40">Admin</span>
-//               )}
-//             </div>
-//             <div className="text-xs text-zinc-500 truncate">Created by {active?.createdBy?.name || active?.createdBy?.email || "—"}</div>
-//           </div>
-//         </div>
-
-//         <div className="flex items-center gap-2">
-//           <button className="lg:hidden p-2 rounded-lg hover:bg-zinc-800" onClick={() => setShowMembersMobile(true)} title="Info">
-//             <Info />
-//           </button>
-
-//           <button onClick={() => setSettingsOpen(true)} className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm">
-//             <SettingsIcon size={16} />
-//           </button>
-
-//           {amAdmin && (
-//             <button onClick={() => setPickerOpen(true)} className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-green-500 text-white text-sm">
-//               <UserPlus size={16} /> 
-//             </button>
-//           )}
-//         </div>
-//       </div>
-//     );
-//   });
-
-//   return (
-//     <div className="min-h-screen h-screen bg-[#0b0d11] text-zinc-100 flex">
-//       <Toaster position="top-right" />
-
-//       {/* LEFT: groups list (drawer on mobile) */}
-//       {!embedded && (
-//         <aside
-//           className={`fixed lg:static inset-y-0 left-0 w-[85%] sm:w-80 lg:w-80 z-40 bg-[#0b0d11] border-r border-zinc-800 flex-shrink-0 flex flex-col transform transition-transform ${
-//             showLeft ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-//           }`}
-//         >
-//           <div className="h-14 px-4 border-b border-zinc-800 flex items-center justify-between">
-//             <div className="flex items-center gap-2">
-//               <Users size={18} className="text-zinc-400" />
-//               <h2 className="font-semibold">Groups</h2>
-//             </div>
-//             <div className="flex items-center gap-2">
-//               <button
-//                 onClick={() => navigate("/g?new=1")}
-//                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm"
-//               >
-//                 <Plus size={16} /> New
-//               </button>
-//               <button className="lg:hidden p-2 rounded-lg hover:bg-zinc-800" onClick={() => setShowLeft(false)}>✕</button>
-//             </div>
-//           </div>
-
-//           <div className="p-3 border-b border-zinc-800">
-//             <div className="flex items-center gap-2 bg-[#0f1216] border border-zinc-700 rounded-xl px-3 py-2">
-//               <Search size={16} className="text-zinc-500" />
-//               <input
-//                 placeholder="Search groups..."
-//                 value={searchQ}
-//                 onChange={(e) => setSearchQ(e.target.value)}
-//                 className="bg-transparent outline-none text-zinc-300 w-full"
-//               />
-//             </div>
-//           </div>
-
-//           <div className="overflow-y-auto h-[calc(100vh-112px)]">
-//             {firstLoad && loadingGroups && <p className="p-3 text-zinc-400">Loading…</p>}
-//             {!loadingGroups && !groups.length && <p className="p-3 text-zinc-500">No groups yet</p>}
-//             {groups.map((g) => {
-//               const isActive = active?._id === g._id;
-//               const count = unread[g._id] || 0;
-//               return (
-//                 <button
-//                   key={g._id}
-//                   onClick={() => navigate(`/g/${g._id}`)}
-//                   className={`w-full text-left px-4 py-3 border-b border-zinc-900 hover:bg-zinc-900/60 transition ${isActive ? "bg-zinc-900/70" : ""}`}
-//                 >
-//                   <div className="flex items-center gap-3">
-//                     <img loading="lazy" src={g.profilePic || "/group-placeholder.png"} alt="" className="w-10 h-10 rounded-full object-cover" />
-//                     <div className="flex-1 min-w-0">
-//                       <div className="flex items-center gap-2">
-//                         <div className="font-medium truncate">{g.name}</div>
-//                         {isAdminOfGroup(g, myId) && <Crown size={12} className="text-yellow-500" title="You are admin" />}
-//                       </div>
-//                       <div className="text-xs text-zinc-500 flex items-center gap-2">
-//                         <span className="truncate">{g.lastMessage?.text || "No messages yet"}</span>
-//                       </div>
-//                     </div>
-//                     <div className="text-right">
-//                       <div className="text-[10px] text-zinc-500">
-//                         {g.lastMessage?.time ? fmtTime(g.lastMessage.time) : ""}
-//                       </div>
-//                       {count > 0 && (
-//                         <div className="mt-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-green-600 text-[10px]">
-//                           {count}
-//                         </div>
-//                       )}
-//                     </div>
-//                   </div>
-//                 </button>
-//               );
-//             })}
-//           </div>
-//         </aside>
-//       )}
-
-//       {/* RIGHT: chat area */}
-//       <main className="flex-1 min-w-0 flex flex-col">
-//         {!active ? (
-//           <div className="h-full grid place-items-center px-6">
-//             <div className="text-center max-w-sm">
-//               <Users className="mx-auto mb-3 text-zinc-600" />
-//               <p className="text-zinc-400">Select a group to manage & chat</p>
-//             </div>
-//           </div>
-//         ) : (
-//           <>
-//             <ChatHeader />
-
-//             <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-//               {/* messages column */}
-//               <div className="flex-1 min-w-0 border-r border-zinc-800 flex flex-col">
-//                 <div ref={listRef} className="flex-1 overflow-y-auto p-3 sm:p-4 bg-[#070809]">
-//                   {Array.isArray(messages) && messages.length > WINDOW && (messages.length - startIdx - visibleMessages.length > 0) && (
-//                     <div className="flex justify-center mb-2">
-//                       <button
-//                         onClick={() => setStartIdx((s) => s + STEP)}
-//                         className="px-3 py-1.5 text-xs rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200"
-//                       >
-//                         Load older messages
-//                       </button>
-//                     </div>
-//                   )}
-
-//                   {(!visibleMessages || visibleMessages.length === 0) && (
-//                     <p className="text-zinc-500">No messages yet — say hi 👋</p>
-//                   )}
-
-//                   {Array.isArray(visibleMessages) &&
-//                     visibleMessages.map((m, i) => {
-//                       // skip messages the current user deleted-for-me
-//                       if (Array.isArray(m.deletedFor) && m.deletedFor.some(x => String(x) === String(myId))) {
-//                         return null;
-//                       }
-//                       const senderId =
-//                         (typeof m.msgByUser === "object" ? m.msgByUser?._id : m.msgByUser) ||
-//                         (typeof m.sender === "object" ? m.sender?._id : m.sender);
-//                       const isMe = String(senderId) === String(myId);
-//                       const time = fmtTime(m.createdAt || m.timestamp || new Date());
-
-//                      const wrap = isMe ? "text-right" : "text-left";
-
-// // message type + emoji detection
-// const type = m.messageType || "text";
-// const isText = !m.messageType || m.messageType === "text";
-// const originalText = getTextFromMessage(m) || "";
-// const emojiOnly = isText && isEmojiOnly((originalText || "").trim());
-
-// // bubble color becomes transparent for emoji-only
-// const bubble = emojiOnly
-//   ? "bg-transparent text-zinc-100"
-//   : isMe
-//   ? "bg-emerald-700 text-white"
-//   : "bg-[#1f2c34] text-zinc-100";
-
-
-//                       return (
-//                         <div key={m._id || `i-${i}`} className={`mb-2 sm:mb-3 ${wrap}`}>
-// <div
-//   className={[
-//     "group relative inline-block rounded-2xl break-words",
-//     "max-w-[85%] sm:max-w-[75%]",
-//     emojiOnly ? "px-2 py-1" : "px-3 py-2",
-//     bubble,
-//   ].join(" ")}
-// >
-//                             {/* kebab */}
-//                             <button
-//                               onClick={(e) => { e.stopPropagation(); setOpenMenuFor(openMenuFor === m._id ? null : m._id); }}
-//                               className={`absolute -top-2 ${isMe ? "-right-2" : "-left-2"} p-1 rounded-full
-//                                           bg-black/30 hover:bg-black/40 opacity-0 group-hover:opacity-100 transition`}
-//                               title="More"
-//                             >
-//                               <MoreVertical size={16} />
-//                             </button>
-
-//                             {/* dropdown */}
-//                             {openMenuFor === m._id && (
-//                               <div
-//                                 className={`absolute z-20 min-w-[160px] border border-zinc-700 rounded-lg overflow-hidden shadow
-//                                             ${isMe ? "right-6 top-0" : "left-6 top-0"} bg-[#0e1013]`}
-//                                 onClick={(e) => e.stopPropagation()}
-//                               >
-//                                 {/* Edit only for my text messages */}
-//                                 {isMe && (m.messageType === "text" || !m.messageType) && (
-//                                   <button
-//                                     className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 flex items-center gap-2"
-//                                     onClick={() => startEdit(m)}
-//                                   >
-//                                     <Pencil size={14} /> Edit
-//                                   </button>
-//                                 )}
-
-//                                 {/* Delete for me */}
-//                                 <button
-//                                   className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 flex items-center gap-2"
-//                                   onClick={() => deleteForMe(m)}
-//                                 >
-//                                   <TrashIcon size={14} /> Delete
-//                                 </button>
-//                               </div>
-//                             )}
-
-//                             {/* editing UI */}
-//                             {editingId === m._id && (m.messageType === "text" || !m.messageType) ? (
-//                               <div className="flex items-center gap-2">
-//                                 <input
-//                                   value={editDraft}
-//                                   onChange={(e) => setEditDraft(e.target.value)}
-//                                   className="flex-1 px-2 py-1 rounded bg-black/20 border border-white/10 outline-none"
-//                                   autoFocus
-//                                 />
-//                                 <button onClick={saveEdit} className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-xs">
-//                                   Save
-//                                 </button>
-//                                 <button onClick={cancelEdit} className="px-2 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-xs">
-//                                   Cancel
-//                                 </button>
-//                               </div>
-//                             ) : (
-//                               <>
-//                                 {/* text */}
-//                                {isText && (
-//   <div
-//     className={
-//       emojiOnly
-//         ? "text-5xl leading-[1] text-center py-1 select-none"
-//         : "whitespace-pre-wrap text-[15px] leading-6"
-//     }
-//   >
-//     {(() => {
-//       const hasTrans = !!m.translatedText;
-//       const canAsk = !isMe && !emojiOnly;
-
-//       const display = hasTrans && canAsk
-//         ? (showOriginalMap[m._id] ? safeText(originalText) : safeText(m.translatedText))
-//         : safeText(originalText);
-
-//       return (
-//         <>
-//           {display}
-
-//           {!emojiOnly && canAsk && (
-//             <div className="text-[11px] mt-1 opacity-80">
-//               {hasTrans ? (
-//                 <button
-//                   onClick={() =>
-//                     setShowOriginalMap((map) => ({ ...map, [m._id]: !map[m._id] }))
-//                   }
-//                   className="underline"
-//                 >
-//                   {showOriginalMap[m._id] ? "Show translation" : "Show original"}
-//                 </button>
-//               ) : (
-//                 <button
-//                   onClick={() => requestGroupTranslation(m._id)}
-//                   className="underline"
-//                   disabled={translatingMessageId === m._id}
-//                 >
-//                   {translatingMessageId === m._id ? "Translating…" : "Translate"}
-//                 </button>
-//               )}
-//             </div>
-//           )}
-
-//           {!emojiOnly && m.isEdited && (
-//             <span className="ml-1 text-[10px] opacity-70">(edited)</span>
-//           )}
-//         </>
-//       );
-//     })()}
-//   </div>
-// )}
-
-
-//                                 {/* media */}
-//                                 {m.messageType === "image" && m.url && <ImageBubble url={m.url} fileName={m.fileName} />}
-//                                 {m.messageType === "file" && m.url && (
-//                                   <FileBubble
-//                                     url={m.url}
-//                                     fileName={m.fileName || m.filename || m.name}
-//                                     size={typeof m.size === "number" ? m.size : m.fileSize}
-//                                   />
-//                                 )}
-
-//                                 {/* voice */}
-//                                 {(m.messageType === "audio" || m.messageType === "voice") && m.url && (
-//                                   <div className="space-y-1">
-//                                     <VoiceBubble src={m.url} />
-//                                     {!isMe && (
-//                                       (() => {
-//                                         const hasTrans = !!m.translatedText;
-//                                         if (hasTrans) {
-//                                           return (
-//                                             <>
-//                                               <p className="text-xs text-zinc-300/90">
-//                                                 {showVoiceOriginalMap[m._id]
-//                                                   ? (m.originalVoiceText || m.text || "No original transcription available")
-//                                                   : m.translatedText}
-//                                               </p>
-//                                               <button
-//                                                 onClick={() =>
-//                                                   setShowVoiceOriginalMap((map) => ({ ...map, [m._id]: !map[m._id] }))
-//                                                 }
-//                                                 className="text-[11px] underline"
-//                                               >
-//                                                 {showVoiceOriginalMap[m._id] ? "Show translation" : "Show original"}
-//                                               </button>
-//                                             </>
-//                                           );
-//                                         }
-//                                         return (
-//                                           <button
-//                                             onClick={() => requestGroupTranslation(m._id)}
-//                                             className="text-xs underline"
-//                                             disabled={translatingMessageId === m._id}
-//                                           >
-//                                             {translatingMessageId === m._id ? "Translating…" : "Translate voice"}
-//                                           </button>
-//                                         );
-//                                       })()
-//                                     )}
-//                                   </div>
-//                                 )}
-//                               </>
-//                             )}
-
-//                             {/* time + seen */}
-//                             <div className={`text-[10px] mt-1 ${isMe ? "text-white/75" : "text-zinc-300/70"} text-right`}>
-//                               {time}
-//                               <SeenTicks m={m} isMe={isMe} />
-//                             </div>
-//                           </div>
-//                         </div>
-//                       );
-//                     })}
-//                   <div ref={messagesEndRef} />
-//                 </div>
-
-//                 {/* input row */}
-//                 <div className="p-2 sm:p-3 border-t border-zinc-800 flex items-center gap-2">
-//                   <input
-//                     ref={fileRef}
-//                     id="fileInput"
-//                     type="file"
-//                     accept="image/*,audio/*,application/pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,*/*"
-//                     hidden
-//                     onChange={(e) => {
-//                       const file = e.target.files?.[0];
-//                       if (!file) return;
-//                       sendFile(file, detectMessageType(file));
-//                       e.target.value = null;
-//                     }}
-//                   />
-//                   <button onClick={() => fileRef.current?.click()} className="p-2 rounded-md hover:bg-zinc-900" title="Attach">
-//                     <Paperclip />
-//                   </button>
-
-//                   <div className="relative">
-//                     <button onClick={() => setShowEmoji((s) => !s)} className="p-2 rounded-md hover:bg-zinc-900" title="Emoji">
-//                       <Smile />
-//                     </button>
-//                     {showEmoji && (
-//                       <div className="absolute bottom-12 left-0 bg-[#0e1013] border border-zinc-700 p-2 rounded-lg grid grid-cols-8 gap-1 shadow z-20 max-h-56 overflow-y-auto w-[18rem]">
-//                         {EMOJIS.map((e, idx) => (
-//                           <button
-//                             key={`${e}-${idx}`}
-//                             onClick={() => {
-//                               addEmoji(e);
-//                               setShowEmoji(false);
-//                             }}
-//                             className="p-1 text-lg"
-//                             title={e}
-//                           >
-//                             {e}
-//                           </button>
-//                         ))}
-//                       </div>
-//                     )}
-//                   </div>
-
-//                   <input
-//                     value={newMsg}
-//                     onChange={(e) => setNewMsg(e.target.value)}
-//                     onKeyDown={(e) => { if (e.key === "Enter") sendGroupMessage(); }}
-//                     placeholder="Type a message…"
-//                     className="flex-1 px-3 py-2 rounded-xl bg-[#0b0d11] border border-zinc-700 outline-none text-zinc-200"
-//                   />
-
-//                   <button
-//                     onClick={toggleRecord}
-//                     className={`p-2 rounded-md hover:bg-zinc-900 ${recording ? "text-red-500" : ""}`}
-//                     title={recording ? "Stop recording" : "Record voice"}
-//                   >
-//                     <Mic />
-//                   </button>
-
-//                   <button
-//                     onClick={sendGroupMessage}
-//                     disabled={!newMsg.trim() || sending}
-//                     className={`px-3 sm:px-4 py-2 rounded-xl text-white flex items-center gap-2 ${
-//                       !newMsg.trim() || sending ? "bg-emerald-900 cursor-not-allowed" : "bg-emerald-700 hover:bg-emerald-600"
-//                     }`}
-//                   >
-//                     <Send size={16} /> <span className="hidden sm:inline">Send</span>
-//                   </button>
-//                 </div>
-//               </div>
-//             </div>
-//           </>
-//         )}
-//       </main>
-
-//       {/* mobile members drawer */}
-//       {showMembersMobile && active && (
-//         <div className="fixed inset-0 z-40 lg:hidden">
-//           <div className="absolute inset-0 bg-black/60" onClick={() => setShowMembersMobile(false)} />
-//           <div className="absolute right-0 top-0 bottom-0 w-[85%] sm:w-[22rem] bg-[#0b0d11] border-l border-zinc-800 p-4 overflow-y-auto">
-//             <div className="flex items-center justify-between mb-3">
-//               <h3 className="text-sm text-zinc-400">Members</h3>
-//               <button onClick={() => setShowMembersMobile(false)} className="p-2 rounded-lg hover:bg-zinc-800">✕</button>
-//             </div>
-//             <div className="grid grid-cols-1 gap-2">
-//               {active?.members?.map((m) => {
-//                 const isAdmin = isAdminOfGroup(active, m);
-//                 const id = getId(m);
-//                 return (
-//                   <div key={id} className="border border-zinc-800 rounded-xl p-3 bg-[#0e1013]">
-//                     <div className="flex items-start justify-between">
-//                       <div className="min-w-0">
-//                         <div className="font-medium truncate">{m.name || m.email}</div>
-//                         <div className="text-xs text-zinc-500 truncate">{m.email}</div>
-//                       </div>
-//                       {isAdmin && (
-//                         <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-700/40">
-//                           <Crown size={12} /> Admin
-//                         </span>
-//                       )}
-//                     </div>
-//                     <div className="mt-3 flex items-center gap-2">
-//                       {amAdmin && !isAdmin && (
-//                         <>
-//                           <button onClick={() => makeAdmin(id)} className="px-2 py-0.5 rounded bg-yellow-600 text-xs">Make Admin</button>
-//                           <button onClick={() => removeMember(id)} className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs">Remove</button>
-//                         </>
-//                       )}
-//                     </div>
-//                   </div>
-//                 );
-//               })}
-//             </div>
-//             <button
-//               onClick={() => { setSettingsOpen(true); setShowMembersMobile(false); }}
-//               className="mt-4 w-full px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700"
-//             >
-//               <SettingsIcon size={14} className="inline mr-1" /> Open Settings
-//             </button>
-//           </div>
-//         </div>
-//       )}
-
-//       {/* create group modal */}
-//       <Modal
-//         open={createOpen}
-//         onClose={resetCreate}
-//         title="Create Group"
-//         footer={
-//           <div className="flex justify-end gap-2">
-//             <button onClick={resetCreate} className="px-3 py-1.5 rounded-lg bg-zinc-700 text-zinc-200 hover:bg-zinc-600">Cancel</button>
-//             <button
-//               onClick={handleCreate}
-//               disabled={creating}
-//               className={`px-3 py-1.5 rounded-lg text-white ${creating ? "bg-green-800 cursor-not-allowed" : "bg-green-600 hover:bg-green-500"}`}
-//             >
-//               {creating ? "Creating..." : "Create"}
-//             </button>
-//           </div>
-//         }
-//       >
-//         <div className="space-y-4">
-//           <div>
-//             <label className="block text-sm mb-1 text-zinc-300">Group Name</label>
-//             <input
-//               value={gName}
-//               onChange={(e) => setGName(e.target.value)}
-//               placeholder="Enter group name"
-//               className="w-full bg-[#0e1013] border border-zinc-700 rounded-xl px-3 py-2 text-zinc-200 outline-none focus:border-zinc-500"
-//             />
-//           </div>
-//           <div>
-//             <label className="block text-sm mb-1 text-zinc-300">Group Photo</label>
-//             <input type="file" accept="image/*" onChange={(e) => onPickPhoto(e.target.files?.[0] || null)} />
-//             {gPhotoPreview && <img loading="lazy" src={gPhotoPreview} alt="preview" className="w-16 h-16 rounded-full object-cover mt-2" />}
-//           </div>
-//           <div>
-//             <label className="block text-sm mb-1 text-zinc-300">Members</label>
-//             <button
-//               onClick={() => setPickerOpen(true)}
-//               className="px-3 py-1.5 rounded-lg bg-emerald-700 text-white hover:bg-emerald-600 text-sm"
-//             >
-//               Pick Members ({gMembers.length})
-//             </button>
-//           </div>
-//         </div>
-//       </Modal>
-
-//       {/* MemberPicker */}
-//       <MemberPicker
-//         open={pickerOpen}
-//         onClose={() => setPickerOpen(false)}
-//         onSubmit={async (picked) => {
-//           if (!picked.length) return toast("ℹ️ No members selected");
-//           setGMembers(picked);           // create modal
-//           setPickerOpen(false);
-//           if (!active) return;           // in create flow; nothing more to do
-//           try {
-//             const ids = picked.map((p) => p._id);
-//             await Promise.all(
-//               ids.map((userId) =>
-//                 http.put("/api/groups/add-member", { groupId: active._id, userId })
-//               )
-//             );
-//             toast.success("Members added");
-//             openGroup(active._id);
-//           } catch (e) {
-//             toast.error(e?.response?.data?.message || "Add failed");
-//           }
-//         }}
-//         excludeIds={[
-//           ...gMembers.map((m) => m._id),
-//           ...(active?.members?.map((m) => getId(m)) || []),
-//         ]}
-//       />
-
-//       {/* settings modal — RESTYLED ONLY (no functionality changes) */}
-//       <Modal
-//         open={settingsOpen}
-//         onClose={() => setSettingsOpen(false)}
-//         title="Group Settings"
-//         wide
-//         footer={
-//           <div className="flex justify-end w-full gap-2">
-//             {amAdmin && (
-//               <>
-//                 {/* <button
-//                   onClick={() => setPickerOpen(true)}
-//                   className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white"
-//                 >
-//                   Add Members
-//                 </button> */}
-//                 <button
-//                   onClick={async () => {
-//                     const nextName = (settingsDraft.name ?? "").trim();
-//                     const curName = (active?.name ?? "").trim();
-//                     const nextPic = settingsDraft.profilePic ?? "";
-//                     const curPic = active?.profilePic ?? "";
-
-//                     const changed = {};
-//                     if (nextName && nextName !== curName) changed.name = nextName;
-//                     if (nextPic && nextPic !== curPic) changed.profilePic = nextPic;
-
-//                     if (Object.keys(changed).length === 0) {
-//                       toast("No changes");
-//                       return;
-//                     }
-//                     await updateGroup(changed);
-//                   }}
-//                   className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white"
-//                 >
-//                   Save Changes
-//                 </button>
-//               </>
-//             )}
-//           </div>
-//         }
-//       >
-//         {!active ? null : (
-//           <div className="space-y-6">
-//             {/* header summary card */}
-//             <div className="rounded-2xl border border-zinc-700 bg-[#0e1013] p-4">
-//               <div className="flex items-start gap-4">
-//                 <img
-//                   loading="lazy"
-//                   src={settingsDraft.profilePic || active?.profilePic || "/group-placeholder.png"}
-//                   alt="group"
-//                   className="w-16 h-16 rounded-xl object-cover border border-zinc-700"
-//                 />
-//                 <div className="flex-1 min-w-0">
-//                   <div className="flex items-center gap-2">
-//                     <h4 className="text-base font-semibold text-zinc-100 truncate">{active?.name}</h4>
-//                     {amAdmin && (
-//                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-700/40">
-//                         Admin
-//                       </span>
-//                     )}
-//                   </div>
-//                   <p className="text-xs text-zinc-400 mt-1">
-//                     Created by {active?.createdBy?.name || active?.createdBy?.email || "—"} • {active?.members?.length || 0} members
-//                   </p>
-//                 </div>
-//               </div>
-//             </div>
-
-//             {/* two-column layout */}
-//             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-//               {/* left column: basic info */}
-//               <section className="md:col-span-1 space-y-4">
-//                 <div className="rounded-2xl border border-zinc-700 bg-[#0e1013] p-4">
-//                   <div className="flex items-center justify-between">
-//                     <h5 className="text-sm font-semibold text-zinc-200">Basic Info</h5>
-//                     {!amAdmin && <span className="text-[10px] text-zinc-500">Read only</span>}
-//                   </div>
-
-//                   <div className="mt-3 space-y-3">
-//                     <div>
-//                       <label className="block text-xs mb-1 text-zinc-400">Group Name</label>
-//                       <input
-//                         value={settingsDraft.name}
-//                         onChange={(e) => setSettingsDraft((s) => ({ ...s, name: e.target.value }))}
-//                         className="w-full bg-[#0b0d11] border border-zinc-700 rounded-xl px-3 py-2 text-zinc-200 outline-none focus:border-zinc-500"
-//                         placeholder="Group name"
-//                         disabled={!amAdmin}
-//                       />
-//                     </div>
-
-//                     <div>
-//                       <label className="block text-xs mb-1 text-zinc-400">Profile Photo</label>
-//                       <div className="flex items-center gap-3">
-//                         <img
-//                           loading="lazy"
-//                           src={settingsDraft.profilePic || active?.profilePic || "/group-placeholder.png"}
-//                           alt="preview"
-//                           className="w-12 h-12 rounded-lg object-cover border border-zinc-700"
-//                         />
-//                         {amAdmin ? (
-//                           <input
-//                             type="file"
-//                             accept="image/*"
-//                             className="text-xs file:mr-3 file:rounded-lg file:border-0 file:px-3 file:py-1.5 file:bg-zinc-800 file:text-zinc-200 hover:file:bg-zinc-700"
-//                             onChange={async (e) => {
-//                               const f = e.target.files?.[0];
-//                               if (!f) return;
-//                               try {
-//                                 const t = toast.loading("Uploading photo...");
-//                                 const res = await uploadFile(f);
-//                                 toast.dismiss(t);
-//                                 const url = res?.secure_url;
-//                                 if (!url) throw new Error("Upload failed");
-//                                 setSettingsDraft((s) => ({ ...s, profilePic: url }));
-//                                 toast.success("Photo ready. Click Save Changes.");
-//                               } catch {
-//                                 toast.error("Photo upload failed");
-//                               }
-//                             }}
-//                           />
-//                         ) : (
-//                           <span className="text-xs text-zinc-500">Only admins can update</span>
-//                         )}
-//                       </div>
-//                     </div>
-//                   </div>
-//                 </div>
-
-//                 <div className="rounded-2xl border border-zinc-700 bg-[#0e1013] p-4">
-//                   <h5 className="text-sm font-semibold text-zinc-200"></h5>
-              
-//                   {/* <div className="mt-3 flex flex-wrap gap-2">
-//                     {!amAdmin && (
-//                       <button onClick={() => setConfirmLeave(true)} className="px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600">
-//                         <LogOut className="inline mr-1" size={14} /> Leave Group
-//                       </button>
-//                     )}
-//                     {amAdmin && (
-//                       <button onClick={() => setConfirmDelete(true)} className="px-3 py-1.5 rounded-lg border border-amber-600 text-amber-400 hover:bg-amber-600/10">
-//                         <Trash2 className="inline mr-1" size={14} /> Delete Group
-//                       </button>
-//                     )}
-//                   </div> */}
-//                   <div className="mt-3 flex flex-wrap gap-2">
-//   {!amAdmin && (
-//     <button
-//       onClick={() => setConfirmLeave(true)}
-//       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl
-//                  bg-zinc-800 text-zinc-200 text-sm font-medium
-//                  ring-1 ring-zinc-700/50 shadow-sm
-//                  hover:bg-zinc-700 hover:text-white
-//                  transition-all duration-150 ease-in-out"
-//     >
-//       <LogOut size={14} className="text-zinc-400" />
-//       Leave Group
-//     </button>
-//   )}
-  
-//   {amAdmin && (
-//     <button
-//       onClick={() => setConfirmDelete(true)}
-//       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl
-//                  bg-transparent text-amber-400 text-sm font-medium
-//                  border border-amber-600/40 ring-1 ring-amber-700/30
-//                  hover:bg-amber-600/10 hover:text-amber-300
-//                  transition-all duration-150 ease-in-out"
-//     >
-//       <Trash2 size={14} className="text-amber-400" />
-//       Delete Group
-//     </button>
-//   )}
-// </div>
-
-//                 </div>
-//               </section>
-
-//               {/* right column: members + past members */}
-//               <section className="md:col-span-2 space-y-4">
-//                 <div className="rounded-2xl border border-zinc-700 bg-[#0e1013] p-4">
-//                   <div className="flex items-center justify-between">
-//                     <h5 className="text-sm font-semibold text-zinc-200">Members</h5>
-//                     {amAdmin && (
-//                       <button
-//                         onClick={() => setPickerOpen(true)}
-//                         className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs"
-//                       >
-//                         <UserPlus size={14} className="inline mr-1" />
-                        
-//                       </button>
-//                     )}
-//                   </div>
-
-//                   <div className="grid sm:grid-cols-2 gap-2 mt-3 max-h-72 overflow-y-auto pr-1">
-//                     {active?.members?.map((m) => {
-//                       const isAdminMember = isAdminOfGroup(active, m);
-//                       const id = getId(m);
-//                       return (
-//                         <div
-//                           key={id}
-//                           className="flex items-center justify-between bg-[#0b0d11] p-2 rounded-lg border border-zinc-700"
-//                         >
-//                           <div className="min-w-0">
-//                             <div className="font-medium truncate">{m.name || m.email}</div>
-//                             <div className="text-xs text-zinc-500 truncate">{m.email}</div>
-//                           </div>
-//                           <div className="flex items-center gap-2">
-//                             {isAdminMember && (
-//                               <span className="inline-flex items-center gap-1 text-[10px] px-3 py-1 rounded-full bg-yellow-400/20 text-yellow-400 border border-yellow-700/40">
-//     <Crown size={12} className="mr-1" />Admin
-//                               </span>
-//                             )}
-//                             {amAdmin && !isAdminMember && (
-//                               <>
-//                                <button
-//   onClick={() => makeAdmin(id)}
-//   className="px-2 py-0.5 inline bg-emerald-700 rounded-full hover:bg-emerald-600 text-zinc-100 text-[11px] whitespace-nowrap"
-// >
-//   Make Admin
-// </button>
-
-//                                 <button onClick={() => removeMember(id)} className="px-2 py-0.5 bg-zinc-700 rounded-full hover:bg-zinc-600 text-zinc-100 text-[11px]">
-//                                   Remove
-//                                 </button>
-//                               </>
-//                             )}
-//                           </div>
-//                         </div>
-//                       );
-//                     })}
-//                     {!active?.members?.length && (
-//                       <p className="text-sm text-zinc-500">No members yet.</p>
-//                     )}
-//                   </div>
-//                 </div>
-
-//                 <div className="rounded-2xl border border-zinc-700 bg-[#0e1013] p-4">
-//                   <div className="flex items-center justify-between">
-//                     <h5 className="text-sm font-semibold text-zinc-200">Past Members</h5>
-//                     <button className="text-xs underline" onClick={() => fetchPastMembers(active._id)}>
-//                       Refresh
-//                     </button>
-//                   </div>
-//                   {!pastMembers?.length ? (
-//                     <p className="text-sm text-zinc-500 mt-2">No past members found.</p>
-//                   ) : (
-//                     <div className="grid sm:grid-cols-2 gap-2 mt-3 max-h-48 overflow-y-auto pr-1">
-//                       {pastMembers.map((m) => {
-//                         const id = getId(m) || m?.user?._id;
-//                         return (
-//                           <div
-//                             key={id}
-//                             className="flex items-center justify-between bg-[#0b0d11] p-2 rounded-lg border border-zinc-700"
-//                           >
-//                             <div className="min-w-0">
-//                               <div className="font-medium truncate">{m.name || m.email}</div>
-//                               <div className="text-xs text-zinc-500 truncate">{m.email}</div>
-//                             </div>
-//                             {amAdmin && (
-//                               <button
-//                                 onClick={async () => {
-//                                   try {
-//                                     await http.put("/api/groups/add-member", {
-//                                       groupId: active._id,
-//                                       userId: id,
-//                                     });
-//                                     toast.success("Re-added to group");
-//                                     openGroup(active._id);
-//                                     fetchPastMembers(active._id);
-//                                   } catch {
-//                                     toast.error("Failed to re-add");
-//                                   }
-//                                 }}
-//                                 className="px-2 py-0.5 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-[11px]"
-//                               >
-//                                 Re-add
-//                               </button>
-//                             )}
-//                           </div>
-//                         );
-//                       })}
-//                     </div>
-//                   )}
-//                 </div>
-//               </section>
-//             </div>
-//           </div>
-//         )}
-//       </Modal>
-
-//       {/* confirms */}
-//       <Confirm
-//         open={confirmDelete}
-//         onClose={() => setConfirmDelete(false)}
-//         onConfirm={deleteGroup}
-//         title="Delete Group"
-//         message="Are you sure you want to delete this group? This action cannot be undone."
-        
-//       />
-//       <Confirm
-//         open={confirmLeave}
-//         onClose={() => setConfirmLeave(false)}
-//         onConfirm={leaveGroup}
-//         title="Leave Group"
-//         message="Are you sure you want to leave this group?"
-//       />
-//     </div>
-//   );
-// }
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalStorage } from "@mantine/hooks";
 import {
@@ -2286,6 +28,7 @@ import {
 } from "lucide-react";
 import { GetSocket } from "../utils/Sockets";
 import ChatDayDivider, { isSameDay } from "./ChatDayDivider";
+import ChatSearchBar, { filterMessagesBySearch } from "./ChatSearchBar";
 
 import http from "../utils/http";
 import toast, { Toaster } from "react-hot-toast";
@@ -2744,7 +487,7 @@ const FileBubble = React.memo(function FileBubble({ url, fileName, size }) {
       </div>
       {!!url && (
         <>
-          <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs underline opacity-90 hover:opacity-100">Open</a>
+          <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs underline opacity-90 hover:opacity-100"></a>
           <a href={url} download={name} className="text-xs underline opacity-90 hover:opacity-100">Download</a>
         </>
       )}
@@ -2786,6 +529,16 @@ const useSafeBack = () => {
     (typeof window !== "undefined" && window.history.length > 1);
   return (fallback = "/g") => (canGoBack ? navigate(-1) : navigate(fallback));
 };
+// Show sender name for group messages
+const getSenderDisplayName = (msg) => {
+  return (
+    msg?.sender?.name ||       // most likely in your app
+    msg?.senderName ||         // fallback if you store plain string
+    msg?.user?.name ||         // some backends use `user`
+    msg?.sender?.email ||      // last resort
+    "Unknown"
+  );
+};
 
 /* =========================== Main =========================== */
 export default function GroupsChatContainer({ embedded = false, initialGroupId }) {
@@ -2822,6 +575,21 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
   const [active, setActive] = useState(null);
   const [messages, setMessages] = useState([]);
   const [sending, setSending] = useState(false);
+  // search within this group chat (keyword + date)
+const [searchState, setSearchState] = useState({ text: "", date: "" });
+
+// derived list that respects search bar filters
+const filteredMessages = useMemo(() => {
+  if (!Array.isArray(messages)) return [];
+  if (!searchState.text?.trim() && !searchState.date) return messages;
+
+  return filterMessagesBySearch(messages, {
+    text: searchState.text || "",
+    date: searchState.date || "",
+  });
+}, [messages, searchState]);
+  const hasSearch = !!(searchState.text?.trim() || searchState.date);
+
 
   const messagesEndRef = useRef(null);
   const listRef = useRef(null);
@@ -2860,6 +628,21 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
   /* settings modal state */
   const [pastMembers, setPastMembers] = useState([]);
   const [settingsDraft, setSettingsDraft] = useState({ name: "", profilePic: "" });
+    const hasSettingsChanges = useMemo(() => {
+    if (!active) return false;
+
+    const curName = (active.name ?? "").trim();
+    const curPic = active.profilePic ?? "";
+
+    const nextName = (settingsDraft.name ?? "").trim();
+    const nextPic = settingsDraft.profilePic ?? "";
+
+    return (
+      (nextName && nextName !== curName) ||
+      (nextPic && nextPic !== curPic)
+    );
+  }, [active, settingsDraft]);
+
 
   /* translation UI state */
   const [showOriginalMap, setShowOriginalMap] = useState({});
@@ -2871,13 +654,18 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
   const STEP = 200;
   const [startIdx, setStartIdx] = useState(0);
 
-  const visibleMessages = useMemo(() => {
-    const n = Array.isArray(messages) ? messages.length : 0;
-    if (n <= WINDOW) return messages || [];
+    const visibleMessages = useMemo(() => {
+    const src = Array.isArray(filteredMessages) ? filteredMessages : [];
+    const n = src.length;
+
+    // when searching, show all matches (no windowing)
+    if (hasSearch || n <= WINDOW) return src;
+
     const start = Math.max(0, n - WINDOW - startIdx);
     const end = n - startIdx;
-    return (messages || []).slice(start, end);
-  }, [messages, startIdx]);
+    return src.slice(start, end);
+  }, [filteredMessages, startIdx, hasSearch]);
+
 
   useEffect(() => {
     if (!Array.isArray(messages)) setMessages(Array.isArray(messages) ? messages : []);
@@ -3061,9 +849,9 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
   const openGroup = async (groupId) => {
     if (!groupId) return;
     try {
-      setActive(null);
-      setMessages([]);
-      setSeenByMap({});
+      // setActive(null);
+      // setMessages([]);
+      // setSeenByMap({});
       setStartIdx(0);
       const { data } = await http.get(`/api/groups/${groupId}`);
       const group = data?.group;
@@ -3784,22 +1572,45 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
             <ChatHeader />
 
             <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-              {/* messages column */}
+              
+                           {/* messages column */}
               <div className="flex-1 min-w-0 border-r border-zinc-800 flex flex-col">
+                {/* in-chat search bar */}
+                <div className="px-3 pt-2 pb-1 border-b border-zinc-800">
+                  <ChatSearchBar
+                    searchText={searchState.text}
+                    searchDate={searchState.date}
+                    onChange={({ text, date }) => {
+                      setSearchState({ text, date });
+                      setStartIdx(0);
+                      if (listRef.current) {
+                        listRef.current.scrollTop = 0;
+                      }
+                    }}
+                    placeholder="Search within this group…"
+                  />
+                </div>
+
                 <div ref={listRef} className="flex-1 overflow-y-auto p-3 sm:p-4 bg-[#070809]">
-                  {Array.isArray(messages) && messages.length > WINDOW && (messages.length - startIdx - visibleMessages.length > 0) && (
-                    <div className="flex justify-center mb-2">
-                      <button
-                        onClick={() => setStartIdx((s) => s + STEP)}
-                        className="px-3 py-1.5 text-xs rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200"
-                      >
-                        Load older messages
-                      </button>
-                    </div>
-                  )}
+                  {/* Load older only when NOT searching */}
+                  {!hasSearch &&
+                    Array.isArray(filteredMessages) &&
+                    filteredMessages.length > WINDOW &&
+                    filteredMessages.length - startIdx - visibleMessages.length > 0 && (
+                      <div className="flex justify-center mb-2">
+                        <button
+                          onClick={() => setStartIdx((s) => s + STEP)}
+                          className="px-3 py-1.5 text-xs rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200"
+                        >
+                          Load older messages
+                        </button>
+                      </div>
+                    )}
 
                   {(!visibleMessages || visibleMessages.length === 0) && (
-                    <p className="text-zinc-500">No messages yet — say hi 👋</p>
+                    <p className="text-zinc-500">
+                      {hasSearch ? "No messages match this search." : "No messages yet — say hi 👋"}
+                    </p>
                   )}
 
                   {Array.isArray(visibleMessages) &&
@@ -3847,181 +1658,230 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
                           )}
 
                           <div className={`mb-2 sm:mb-3 ${wrap}`}>
-                            <div
-                              className={[
-                                "group relative inline-block rounded-2xl break-words",
-                                "max-w-[85%] sm:max-w-[75%]",
-                                emojiOnly ? "px-2 py-1" : "px-3 py-2",
-                                bubble,
-                              ].join(" ")}
-                            >
-                              {/* kebab */}
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setOpenMenuFor(openMenuFor === m._id ? null : m._id); }}
-                                className={`absolute -top-2 ${isMe ? "-right-2" : "-left-2"} p-1 rounded-full
-                                          bg-black/30 hover:bg-black/40 opacity-0 group-hover:opacity-100 transition`}
-                                title="More"
-                              >
-                                <MoreVertical size={16} />
-                              </button>
+  {/* sender name (WhatsApp-style) – only for other people in the group */}
+  {!isMe && (
+    <div className="text-[11px] font-semibold text-emerald-400 mb-0.5 px-1">
+      {getSenderDisplayName(m)}
+    </div>
+  )}
 
-                              {/* dropdown */}
-                              {openMenuFor === m._id && (
-                                <div
-                                  className={`absolute z-20 min-w-[160px] border border-zinc-700 rounded-lg overflow-hidden shadow
-                                            ${isMe ? "right-6 top-0" : "left-6 top-0"} bg-[#0e1013]`}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {/* Edit only for my text messages */}
-                                  {isMe && (m.messageType === "text" || !m.messageType) && (
-                                    <button
-                                      className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 flex items-center gap-2"
-                                      onClick={() => startEdit(m)}
-                                    >
-                                      <Pencil size={14} /> Edit
-                                    </button>
-                                  )}
+  <div
+    className={[
+      "group relative inline-block rounded-2xl break-words",
+      "max-w-[85%] sm:max-w-[75%]",
+      emojiOnly ? "px-2 py-1" : "px-3 py-2",
+      bubble,
+    ].join(" ")}
+  >
+    {/* kebab */}
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        setOpenMenuFor(openMenuFor === m._id ? null : m._id);
+      }}
+      className={`absolute -top-2 ${isMe ? "-right-2" : "-left-2"} p-1 rounded-full
+                  bg-black/30 hover:bg-black/40 opacity-0 group-hover:opacity-100 transition`}
+      title="More"
+    >
+      <MoreVertical size={16} />
+    </button>
 
-                                  {/* Delete for me */}
-                                  <button
-                                    className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 flex items-center gap-2"
-                                    onClick={() => deleteForMe(m)}
-                                  >
-                                    <TrashIcon size={14} /> Delete
-                                  </button>
-                                </div>
-                              )}
+    {/* dropdown */}
+    {openMenuFor === m._id && (
+      <div
+        className={`absolute z-20 min-w-[160px] border border-zinc-700 rounded-lg overflow-hidden shadow
+                    ${isMe ? "right-6 top-0" : "left-6 top-0"} bg-[#0e1013]`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Edit only for my text messages */}
+        {isMe && (m.messageType === "text" || !m.messageType) && (
+          <button
+            className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 flex items-center gap-2"
+            onClick={() => startEdit(m)}
+          >
+            <Pencil size={14} /> Edit
+          </button>
+        )}
 
-                              {/* editing UI */}
-                              {editingId === m._id && (m.messageType === "text" || !m.messageType) ? (
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    value={editDraft}
-                                    onChange={(e) => setEditDraft(e.target.value)}
-                                    className="flex-1 px-2 py-1 rounded bg-black/20 border border-white/10 outline-none"
-                                    autoFocus
-                                  />
-                                  <button onClick={saveEdit} className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-xs">
-                                    Save
-                                  </button>
-                                  <button onClick={cancelEdit} className="px-2 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-xs">
-                                    Cancel
-                                  </button>
-                                </div>
-                              ) : (
-                                <>
-                                  {/* text */}
-                                  {isText && (
-                                    <div
-                                      className={
-                                        emojiOnly
-                                          ? "text-5xl leading-[1] text-center py-1 select-none"
-                                          : "whitespace-pre-wrap text-[15px] leading-6"
-                                      }
-                                    >
-                                      {(() => {
-                                        const hasTrans = !!m.translatedText;
-                                        const canAsk = !isMe && !emojiOnly;
+        {/* Delete for me */}
+        <button
+          className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 flex items-center gap-2"
+          onClick={() => deleteForMe(m)}
+        >
+          <TrashIcon size={14} /> Delete
+        </button>
+      </div>
+    )}
 
-                                        const display = hasTrans && canAsk
-                                          ? (showOriginalMap[m._id] ? safeText(originalText) : safeText(m.translatedText))
-                                          : safeText(originalText);
+    {/* editing UI */}
+    {editingId === m._id && (m.messageType === "text" || !m.messageType) ? (
+      <div className="flex items-center gap-2">
+        <input
+          value={editDraft}
+          onChange={(e) => setEditDraft(e.target.value)}
+          className="flex-1 px-2 py-1 rounded bg-black/20 border border-white/10 outline-none"
+          autoFocus
+        />
+        <button
+          onClick={saveEdit}
+          className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-xs"
+        >
+          Save
+        </button>
+        <button
+          onClick={cancelEdit}
+          className="px-2 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-xs"
+        >
+          Cancel
+        </button>
+      </div>
+    ) : (
+      <>
+        {/* text */}
+        {isText && (
+          <div
+            className={
+              emojiOnly
+                ? "text-5xl leading-[1] text-center py-1 select-none"
+                : "whitespace-pre-wrap text-[15px] leading-6"
+            }
+          >
+            {(() => {
+              const hasTrans = !!m.translatedText;
+              const canAsk = !isMe && !emojiOnly;
 
-                                        return (
-                                          <>
-                                            {display}
+              const display =
+                hasTrans && canAsk
+                  ? showOriginalMap[m._id]
+                    ? safeText(originalText)
+                    : safeText(m.translatedText)
+                  : safeText(originalText);
 
-                                            {!emojiOnly && canAsk && (
-                                              <div className="text-[11px] mt-1 opacity-80">
-                                                {hasTrans ? (
-                                                  <button
-                                                    onClick={() =>
-                                                      setShowOriginalMap((map) => ({ ...map, [m._id]: !map[m._id] }))
-                                                    }
-                                                    className="underline"
-                                                  >
-                                                    {showOriginalMap[m._id] ? "Show translation" : "Show original"}
-                                                  </button>
-                                                ) : (
-                                                  <button
-                                                    onClick={() => requestGroupTranslation(m._id)}
-                                                    className="underline"
-                                                    disabled={translatingMessageId === m._id}
-                                                  >
-                                                    {translatingMessageId === m._id ? "Translating…" : "Translate"}
-                                                  </button>
-                                                )}
-                                              </div>
-                                            )}
+              return (
+                <>
+                  {display}
 
-                                            {!emojiOnly && m.isEdited && (
-                                              <span className="ml-1 text-[10px] opacity-70">(edited)</span>
-                                            )}
-                                          </>
-                                        );
-                                      })()}
-                                    </div>
-                                  )}
+                  {!emojiOnly && canAsk && (
+                    <div className="text-[11px] mt-1 opacity-80">
+                      {hasTrans ? (
+                        <button
+                          onClick={() =>
+                            setShowOriginalMap((map) => ({
+                              ...map,
+                              [m._id]: !map[m._id],
+                            }))
+                          }
+                          className="underline"
+                        >
+                          {showOriginalMap[m._id]
+                            ? "Show translation"
+                            : "Show original"}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => requestGroupTranslation(m._id)}
+                          className="underline"
+                          disabled={translatingMessageId === m._id}
+                        >
+                          {translatingMessageId === m._id
+                            ? "Translating…"
+                            : "Translate"}
+                        </button>
+                      )}
+                    </div>
+                  )}
 
-                                  {/* media */}
-                                  {m.messageType === "image" && m.url && <ImageBubble url={m.url} fileName={m.fileName} />}
-                                  {m.messageType === "file" && m.url && (
-                                    <FileBubble
-                                      url={m.url}
-                                      fileName={m.fileName || m.filename || m.name}
-                                      size={typeof m.size === "number" ? m.size : m.fileSize}
-                                    />
-                                  )}
+                  {!emojiOnly && m.isEdited && (
+                    <span className="ml-1 text-[10px] opacity-70">
+                      (edited)
+                    </span>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        )}
 
-                                  {/* voice */}
-                                  {(m.messageType === "audio" || m.messageType === "voice") && m.url && (
-                                    <div className="space-y-1">
-                                      <VoiceBubble src={m.url} />
-                                      {!isMe && (
-                                        (() => {
-                                          const hasTrans = !!m.translatedText;
-                                          if (hasTrans) {
-                                            return (
-                                              <>
-                                                <p className="text-xs text-zinc-300/90">
-                                                  {showVoiceOriginalMap[m._id]
-                                                    ? (m.originalVoiceText || m.text || "No original transcription available")
-                                                    : m.translatedText}
-                                                </p>
-                                                <button
-                                                  onClick={() =>
-                                                    setShowVoiceOriginalMap((map) => ({ ...map, [m._id]: !map[m._id] }))
-                                                  }
-                                                  className="text-[11px] underline"
-                                                >
-                                                  {showVoiceOriginalMap[m._id] ? "Show translation" : "Show original"}
-                                                </button>
-                                              </>
-                                            );
-                                          }
-                                          return (
-                                            <button
-                                              onClick={() => requestGroupTranslation(m._id)}
-                                              className="text-xs underline"
-                                              disabled={translatingMessageId === m._id}
-                                            >
-                                              {translatingMessageId === m._id ? "Translating…" : "Translate voice"}
-                                            </button>
-                                          );
-                                        })()
-                                      )}
-                                    </div>
-                                  )}
-                                </>
-                              )}
+        {/* media */}
+        {m.messageType === "image" && m.url && (
+          <ImageBubble url={m.url} fileName={m.fileName} />
+        )}
+        {m.messageType === "file" && m.url && (
+          <FileBubble
+            url={m.url}
+            fileName={m.fileName || m.filename || m.name}
+            size={
+              typeof m.size === "number" ? m.size : m.fileSize
+            }
+          />
+        )}
 
-                              {/* time + seen */}
-                              <div className={`text-[10px] mt-1 ${isMe ? "text-white/75" : "text-zinc-300/70"} text-right`}>
-                                {time}
-                                <SeenTicks m={m} isMe={isMe} />
-                              </div>
-                            </div>
-                          </div>
+        {/* voice */}
+        {(m.messageType === "audio" ||
+          m.messageType === "voice") &&
+          m.url && (
+            <div className="space-y-1">
+              <VoiceBubble src={m.url} />
+              {!isMe &&
+                (() => {
+                  const hasTrans = !!m.translatedText;
+                  if (hasTrans) {
+                    return (
+                      <>
+                        <p className="text-xs text-zinc-300/90">
+                          {showVoiceOriginalMap[m._id]
+                            ? m.originalVoiceText
+                            : m.translatedText ||
+                              m.text ||
+                              "No translation available"}
+                        </p>
+                        <button
+                          onClick={() =>
+                            setShowVoiceOriginalMap((map) => ({
+                              ...map,
+                              [m._id]: !map[m._id],
+                            }))
+                          }
+                          className="text-[11px] underline"
+                        >
+                          {showVoiceOriginalMap[m._id]
+                            ? "Show translation"
+                            : "Show original"}
+                        </button>
+                      </>
+                    );
+                  }
+                  return (
+                    <button
+                      onClick={() =>
+                        requestGroupTranslation(m._id)
+                      }
+                      className="text-xs underline"
+                      disabled={translatingMessageId === m._id}
+                    >
+                      {translatingMessageId === m._id
+                        ? "Translating…"
+                        : "Translate voice"}
+                    </button>
+                  );
+                })()}
+            </div>
+          )}
+      </>
+    )}
+
+    {/* time + seen */}
+    <div
+      className={`text-[10px] mt-1 ${
+        isMe ? "text-white/75" : "text-zinc-300/70"
+      } text-right`}
+    >
+      {time}
+      <SeenTicks m={m} isMe={isMe} />
+    </div>
+  </div>
+</div>
+
                         </React.Fragment>
                       );
                     })}
@@ -4097,6 +1957,7 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
                   </button>
                 </div>
               </div>
+
             </div>
           </>
         )}
@@ -4161,7 +2022,7 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
             <button
               onClick={handleCreate}
               disabled={creating}
-              className={`px-3 py-1.5 rounded-lg text-white ${creating ? "bg-green-800 cursor-not-allowed" : "bg-green-600 hover:bg-green-500"}`}
+              className={`px-3 py-1.5 rounded-lg text-white ${creating ? "bg-emerald-700 cursor-not-allowed" : "bg-emerald-600 hover:bg-emerald-500"}`}
             >
               {creating ? "Creating..." : "Create"}
             </button>
@@ -4231,9 +2092,12 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
         wide
         footer={
           <div className="flex justify-end w-full gap-2">
-            {amAdmin && (
+                     {amAdmin && (
               <button
+                disabled={!hasSettingsChanges}
                 onClick={async () => {
+                  if (!active || !hasSettingsChanges) return;
+
                   const nextName = (settingsDraft.name ?? "").trim();
                   const curName = (active?.name ?? "").trim();
                   const nextPic = settingsDraft.profilePic ?? "";
@@ -4243,17 +2107,20 @@ export default function GroupsChatContainer({ embedded = false, initialGroupId }
                   if (nextName && nextName !== curName) changed.name = nextName;
                   if (nextPic && nextPic !== curPic) changed.profilePic = nextPic;
 
-                  if (Object.keys(changed).length === 0) {
-                    toast("No changes");
-                    return;
-                  }
+                  if (Object.keys(changed).length === 0) return;
+
                   await updateGroup(changed);
                 }}
-                className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white"
+                className={`px-3 py-1.5 rounded-lg text-white ${
+                  !hasSettingsChanges
+                    ? "bg-emerald-900 cursor-not-allowed"
+                    : "bg-emerald-700 hover:bg-emerald-600"
+                }`}
               >
                 Save Changes
               </button>
             )}
+
           </div>
         }
       >
