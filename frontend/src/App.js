@@ -62,7 +62,8 @@ import { Sockets } from "./utils/Sockets";
 import SocketNotifier from "./components/SocketNotifier";
 import DashboardLayout from "./components/DashboardLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute"; // ✅ import the fixed guard
-
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
 // Lazy load pages
 const Login = lazy(() => import("./components/Login"));
 const Signup = lazy(() => import("./components/Signup"));
@@ -97,7 +98,10 @@ function App() {
               <Route path=":userId" element={<ChatPage />} /> {/* DMs */}
               <Route path="g" element={<GroupsChatContainer embedded />} /> {/* Groups list */}
               <Route path="g/:groupId" element={<GroupsChatContainer embedded />} />
+              
             </Route>
+             <Route path="/forgot-password" element={<ForgotPassword />} />
+  <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Fallback */}
             <Route
