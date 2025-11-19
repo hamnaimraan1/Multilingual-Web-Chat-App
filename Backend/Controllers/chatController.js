@@ -1,72 +1,8 @@
-// // Controllers/chatController.js
-// import Convo from "../Models/convModel.js";
 
-// // Mute / Unmute chat
-// export const toggleMuteChat = async (req, res) => {
-//   try {
-//     const { chatId } = req.params;
-//     const chat = await Convo.findById(chatId);
-//     if (!chat) return res.status(404).json({ message: "Convo not found" });
-
-//     chat.isMuted = !chat.isMuted;
-//     await chat.save();
-
-//     // return flags for easy UI updates
-//     res.json({ success: true, isMuted: chat.isMuted, chatId: chat._id });
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
-// // Archive / Unarchive chat
-// export const toggleArchiveChat = async (req, res) => {
-//   try {
-//     const { chatId } = req.params;
-//     const chat = await Convo.findById(chatId);
-//     if (!chat) return res.status(404).json({ message: "Convo not found" });
-
-//     chat.isArchived = !chat.isArchived;
-//     await chat.save();
-
-//     res.json({ success: true, isArchived: chat.isArchived, chatId: chat._id });
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
-// // Pin / Unpin chat
-// export const togglePinChat = async (req, res) => {
-//   try {
-//     const { chatId } = req.params;
-//     const chat = await Convo.findById(chatId);
-//     if (!chat) return res.status(404).json({ message: "Convo not found" });
-
-//     chat.isPinned = !chat.isPinned;
-//     await chat.save();
-
-//     res.json({ success: true, isPinned: chat.isPinned, chatId: chat._id });
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
-// // Delete chat (simple delete)
-// export const deleteChat = async (req, res) => {
-//   try {
-//     const { chatId } = req.params;
-//     await Convo.findByIdAndDelete(chatId);
-//     res.json({ success: true, message: "Convo deleted successfully", chatId });
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-// Controllers/chatController.js
 import Convo from "../Models/convModel.js";
 import Pref from "../Models/prefModel.js";
 
-/**
- * Ensure we have a logged-in user (needs auth middleware on the route!).
- */
+
 const requireOwner = (req, res) => {
   const me = req?.user?._id;
   if (!me) {
@@ -76,9 +12,7 @@ const requireOwner = (req, res) => {
   return me;
 };
 
-/**
- * Get or create a per-user pref doc for a DM (scope='dm', target=<chatId>).
- */
+
 const getPrefDM = async (ownerId, chatId) => {
   let pref = await Pref.findOne({ owner: ownerId, scope: "dm", target: chatId });
   if (!pref) {
@@ -96,7 +30,6 @@ const getPrefDM = async (ownerId, chatId) => {
 };
 
 /**
- * Return a small, uniform payload for UI.
  */
 const outFlags = (chatId, pref) => ({
   success: true,
@@ -180,14 +113,7 @@ export const togglePinChat = async (req, res) => {
   }
 };
 
-/**
- * Delete chat for ME (soft-delete via Pref.hidden)
- * DELETE /api/chat/:chatId/delete
- *
- * NOTE: This does not delete the conversation globally. It hides it for this user,
- * like WhatsApp's "Clear/Hide" semantics. If you truly want to delete the convo,
- * that should be a separate admin/mod action.
- */
+
 export const deleteChat = async (req, res) => {
   try {
     const me = requireOwner(req, res);

@@ -98,30 +98,7 @@ export const userinfo = catchAsync(async (req, res) => {
   });
 });
 
-// Update user
-// export const updateuser = catchAsync(async (req, res) => {
-//   const { userID, name, profilePic, preferredLanguage } = req.body;
 
-//   const updated = await User.updateOne(
-//     { _id: userID },
-//     { name, profilePic, preferredLanguage }
-//   );
-
-//   if (updated.modifiedCount === 0) {
-//     return res.status(200).json({
-//       success: true,
-//       message: "Saved successfully.",
-//     });
-//   }
-
-//   if (updated.modifiedCount === 1) {
-//     const user = await User.findById(userID);
-//     return res.status(200).json({
-//       success: true,
-//       message: "User updated successfully",
-//     });
-//   }
-// });
 export const updateuser = catchAsync(async (req, res) => {
   const { userID, name, profilePic, preferredLanguage } = req.body;
 
